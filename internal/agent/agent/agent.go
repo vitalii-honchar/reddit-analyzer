@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -120,10 +121,10 @@ func (a *AgentState) AddMessage(msg LLMMessage) {
 }
 
 type LLM interface {
-	Call(msgs []LLMMessage) (LLMMessage, error)
+	Call(ctx context.Context, msgs []LLMMessage) (LLMMessage, error)
 }
 
-func (a *Agent[T]) Run() (*AgentResult[T], error) {
+func (a *Agent[T]) Run(ctx context.Context) (*AgentResult[T], error) {
 
 	state, err := a.createInitState()
 	if err != nil {
@@ -140,7 +141,7 @@ func (a *Agent[T]) Run() (*AgentResult[T], error) {
 			return res, ErrLimitReached
 		}
 
-		llmMessage, err := a.llm.Call(state.Messages)
+		llmMessage, err := a.llm.Call(ctx, state.Messages)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrLLMCall, err)
 		}
