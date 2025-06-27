@@ -41,13 +41,74 @@ OUTPUT SCHEMA:
 `)
 
 type Agent[T any] struct {
-	llm              LLM
-	tools            map[ToolName]Tool
-	limits           map[ToolName]int
-	outputSchema     *T
-	systemPrompt     Prompt
-	behavior         string
-	outputJSONSchema string
+	llm          LLM
+	tools        map[ToolName]Tool
+	limits       map[ToolName]int
+	outputSchema *T
+	systemPrompt Prompt
+	behavior     string
+	schemaLoader gojsonschema.JSONLoader
+}
+
+type AgentOption[T any] func(*Agent[T])
+
+func NewAgent[T any](options ...AgentOption[T]) *Agent[T] {
+	agent := &Agent[T]{
+		tools:  make(map[ToolName]Tool),
+		limits: make(map[ToolName]int),
+	}
+	for _, opt := range options {
+		opt(agent)
+	}
+	return agent
+}
+
+// WithLLM sets the LLM for the agent
+func WithLLM[T any](llm LLM) AgentOption[T] {
+	return func(a *Agent[T]) {
+		a.llm = llm
+	}
+}
+
+// WithBehavior sets the behavior description for the agent
+func WithBehavior[T any](behavior string) AgentOption[T] {
+	return func(a *Agent[T]) {
+		a.behavior = behavior
+	}
+}
+
+// WithOutputSchema sets the output schema for type-safe result parsing
+func WithOutputSchema[T any](schema *T) AgentOption[T] {
+	return func(a *Agent[T]) {
+		a.outputSchema = schema
+		// Pre-compile schema for validation
+		reflectedSchema := jsonschema.Reflect(schema)
+		schemaBytes, err := json.Marshal(reflectedSchema)
+		if err == nil {
+			a.schemaLoader = gojsonschema.NewStringLoader(string(schemaBytes))
+		}
+	}
+}
+
+// WithSystemPrompt sets a custom system prompt template
+func WithSystemPrompt[T any](prompt Prompt) AgentOption[T] {
+	return func(a *Agent[T]) {
+		a.systemPrompt = prompt
+	}
+}
+
+// WithTool adds a tool to the agent
+func WithTool[T any](name ToolName, tool Tool) AgentOption[T] {
+	return func(a *Agent[T]) {
+		a.tools[name] = tool
+	}
+}
+
+// WithToolLimit sets the usage limit for a specific tool
+func WithToolLimit[T any](name ToolName, limit int) AgentOption[T] {
+	return func(a *Agent[T]) {
+		a.limits[name] = limit
+	}
 }
 
 type AgentState struct {
@@ -164,8 +225,7 @@ func (a *Agent[T]) callTool(llmMessage *LLMMessage, usage map[ToolName]int) erro
 
 func (a *Agent[T]) createResult(state *AgentState) (*AgentResult[T], error) {
 	dataLoader := gojsonschema.NewStringLoader(state.Messages[len(state.Messages)-1].Content)
-	schemaLoader := gojsonschema.NewStringLoader(a.outputJSONSchema)
-	validationRes, err := gojsonschema.Validate(schemaLoader, dataLoader)
+	validationRes, err := gojsonschema.Validate(a.schemaLoader, dataLoader)
 
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidResultSchema, err)
