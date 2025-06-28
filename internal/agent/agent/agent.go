@@ -19,19 +19,19 @@ var (
 	ErrToolNotFound        = errors.New("tool not found")
 	ErrInvalidResultSchema = errors.New("invalid result schema")
 	ErrCannotCreateSchema  = errors.New("cannot create schema from output type")
+	ErrEmptySystemPrompt   = errors.New("system prompt cannot be empty")
 )
 
-var systemPromptTemplate = NewPrompt(`
-You are an agent that should act as specified in escaped content <BEHAVIOR></BEHAVIOR>.
+var systemPromptTemplate = NewPrompt(`You are an agent that should act as specified in escaped content <BEHAVIOR></BEHAVIOR>.
 At the end of execution when you will be read to finish, you should return a JSON object that matches the output schema.
 
 TOOLS AVAILABLE TO USE:
 {{.tools}}
 
-TOOLS USAGE LIMITS:
+CURRENT TOOLS USAGE:
 {{.tools_usage}}
 
-TOOLS CALLING LIMITS:
+TOOLS USAGE LIMITS:
 {{.calling_limits}}
 
 OUTPUT SCHEMA:
@@ -43,9 +43,10 @@ OUTPUT SCHEMA:
 `)
 
 type Agent[T any] struct {
+	name         string
 	llm          llm.LLM
 	llmConfig    llm.LLMConfig
-	tools        map[string]llm.LLMTool[llm.LLMToolResult]
+	tools        map[string]llm.LLMTool
 	limits       map[string]int
 	outputSchema *T
 	systemPrompt Prompt
@@ -57,8 +58,9 @@ type AgentOption[T any] func(*Agent[T])
 
 func NewAgent[T any](options ...AgentOption[T]) (*Agent[T], error) {
 	agent := &Agent[T]{
-		tools:  make(map[string]llm.LLMTool[llm.LLMToolResult]),
-		limits: make(map[string]int),
+		tools:        make(map[string]llm.LLMTool),
+		limits:       make(map[string]int),
+		systemPrompt: systemPromptTemplate,
 	}
 	for _, opt := range options {
 		opt(agent)
@@ -71,6 +73,12 @@ func NewAgent[T any](options ...AgentOption[T]) (*Agent[T], error) {
 	agent.llm = agentLLM
 
 	return agent, nil
+}
+
+func WithName[T any](name string) AgentOption[T] {
+	return func(a *Agent[T]) {
+		a.name = name
+	}
 }
 
 func WithLLMConfig[T any](config llm.LLMConfig) AgentOption[T] {
@@ -103,7 +111,7 @@ func WithSystemPrompt[T any](prompt Prompt) AgentOption[T] {
 	}
 }
 
-func WithTool[T any](name string, tool llm.LLMTool[llm.LLMToolResult]) AgentOption[T] {
+func WithTool[T any](name string, tool llm.LLMTool) AgentOption[T] {
 	return func(a *Agent[T]) {
 		a.tools[name] = tool
 	}
@@ -123,22 +131,21 @@ func (a *AgentState) AddMessage(msg llm.LLMMessage) {
 	a.Messages = append(a.Messages, msg)
 }
 
-func (a *Agent[T]) Run(ctx context.Context) (*AgentResult[T], error) {
-
-	state, err := a.createInitState()
+func (a *Agent[T]) Run(ctx context.Context, input any) (*AgentResult[T], error) {
+	state, err := a.createInitState(input)
 	if err != nil {
 		return nil, err
 	}
 	usage := make(map[string]int)
 
 	for {
-		if a.isLimitReached(usage) {
-			res, err := a.createResult(state)
-			if err != nil {
-				return nil, fmt.Errorf("%w: %s", ErrLimitReached, err)
-			}
-			return res, ErrLimitReached
-		}
+		// if a.isLimitReached(usage) {
+		// 	res, err := a.createResult(state)
+		// 	if err != nil {
+		// 		return nil, fmt.Errorf("%w: %s", ErrLimitReached, err)
+		// 	}
+		// 	return res, ErrLimitReached
+		// }
 
 		llmMessage, err := a.llm.Call(ctx, state.Messages)
 		if err != nil {
@@ -146,9 +153,11 @@ func (a *Agent[T]) Run(ctx context.Context) (*AgentResult[T], error) {
 		}
 
 		if llmMessage.ToolCalls != nil {
-			if err := a.callTools(llmMessage, usage); err != nil {
+			results, err := a.callTools(llmMessage, usage)
+			if err != nil {
 				return nil, fmt.Errorf("%w: %s", ErrToolError, err)
 			}
+			llmMessage.ToolResults = results
 		}
 
 		state.AddMessage(llmMessage)
@@ -165,14 +174,25 @@ func (a *Agent[T]) Run(ctx context.Context) (*AgentResult[T], error) {
 	}
 }
 
-func (a *Agent[T]) createInitState() (*AgentState, error) {
+func (a *Agent[T]) createInitState(input any) (*AgentState, error) {
 	systemPrompt, err := a.createSystemPrompt(make(map[string]int))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create system prompt: %w", err)
 	}
+
+	if systemPrompt == "" {
+		return nil, ErrEmptySystemPrompt
+	}
+
+	inputJson, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal input: %w", err)
+	}
+
 	return &AgentState{
 		Messages: []llm.LLMMessage{
 			llm.NewLLMMessage(llm.LLMMessageTypeSystem, systemPrompt),
+			llm.NewLLMMessage(llm.LLMMessageTypeUser, string(inputJson)),
 		},
 	}, nil
 }
@@ -208,21 +228,22 @@ func (a *Agent[T]) createSystemPrompt(usage map[string]int) (string, error) {
 	})
 }
 
-func (a *Agent[T]) callTools(llmMessage llm.LLMMessage, usage map[string]int) error {
+func (a *Agent[T]) callTools(llmMessage llm.LLMMessage, usage map[string]int) ([]llm.LLMToolResult, error) {
+	var results []llm.LLMToolResult
 	for _, toolCall := range llmMessage.ToolCalls {
 		tool, ok := a.tools[toolCall.ToolName]
 		if !ok {
-			return fmt.Errorf("%w: %s", ErrToolNotFound, toolCall.ToolName)
+			return nil, fmt.Errorf("%w: %s", ErrToolNotFound, toolCall.ToolName)
 		}
 		toolRes, err := tool.Call(toolCall.ID, toolCall.Args)
 		if err != nil {
-			return fmt.Errorf("%w: %s", ErrToolError, err)
+			return nil, fmt.Errorf("%w: %s", ErrToolError, err)
 		}
 		usage[toolCall.ToolName]++
-		llmMessage.ToolResults = append(llmMessage.ToolResults, toolRes)
+		results = append(results, toolRes)
 	}
 
-	return nil
+	return results, nil
 }
 
 func (a *Agent[T]) createResult(state *AgentState) (*AgentResult[T], error) {

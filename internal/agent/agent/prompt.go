@@ -10,13 +10,13 @@ type Prompt struct {
 	Template string `json:"template"`
 }
 
-func NewPrompt(template string) *Prompt {
-	return &Prompt{
+func NewPrompt(template string) Prompt {
+	return Prompt{
 		Template: template,
 	}
 }
 
-func (p *Prompt) Render(args map[string]any) (string, error) {
+func (p Prompt) Render(args map[string]any) (string, error) {
 	tmpl, err := template.New("prompt").Parse(p.Template)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse prompt template: %w", err)

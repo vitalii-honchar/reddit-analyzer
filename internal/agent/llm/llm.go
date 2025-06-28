@@ -11,7 +11,7 @@ type LLM interface {
 	Call(ctx context.Context, msgs []LLMMessage) (LLMMessage, error)
 }
 
-func CreateLLM(cfg LLMConfig, tools map[string]LLMTool[LLMToolResult]) (LLM, error) {
+func CreateLLM(cfg LLMConfig, tools map[string]LLMTool) (LLM, error) {
 	switch cfg.Type {
 	case LLMTypeOpenAI:
 		return newOpenAILLM(
@@ -25,11 +25,11 @@ func CreateLLM(cfg LLMConfig, tools map[string]LLMTool[LLMToolResult]) (LLM, err
 	}
 }
 
-func toSlice(tools map[string]LLMTool[LLMToolResult]) []LLMTool[LLMToolResult] {
+func toSlice(tools map[string]LLMTool) []LLMTool {
 	if len(tools) == 0 {
 		return nil
 	}
-	slice := make([]LLMTool[LLMToolResult], 0, len(tools))
+	slice := make([]LLMTool, 0, len(tools))
 	for _, tool := range tools {
 		slice = append(slice, tool)
 	}

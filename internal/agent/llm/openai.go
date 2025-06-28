@@ -19,7 +19,7 @@ type openAILLM struct {
 	apiKey      string
 	temperature float64
 	model       openai.ChatModel
-	tools       []LLMTool[LLMToolResult]
+	tools       []LLMTool
 }
 
 type openAILLMOption func(o *openAILLM)
@@ -42,7 +42,7 @@ func withOpenAIAPIKey(apiKey string) openAILLMOption {
 	}
 }
 
-func withOpenAITools(tools []LLMTool[LLMToolResult]) openAILLMOption {
+func withOpenAITools(tools []LLMTool) openAILLMOption {
 	return func(o *openAILLM) {
 		o.tools = tools
 	}
