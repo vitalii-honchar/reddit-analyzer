@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reddit-analyzer/internal/agent/llm"
 
 	"github.com/invopop/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
@@ -43,6 +44,7 @@ OUTPUT SCHEMA:
 
 type Agent[T any] struct {
 	llm          LLM
+	llmConfig    *llm.LLMConfig
 	tools        map[ToolName]Tool
 	limits       map[ToolName]int
 	outputSchema *T
@@ -53,7 +55,7 @@ type Agent[T any] struct {
 
 type AgentOption[T any] func(*Agent[T])
 
-func NewAgent[T any](options ...AgentOption[T]) *Agent[T] {
+func NewAgent[T any](options ...AgentOption[T]) (*Agent[T], error) {
 	agent := &Agent[T]{
 		tools:  make(map[ToolName]Tool),
 		limits: make(map[ToolName]int),
@@ -61,13 +63,24 @@ func NewAgent[T any](options ...AgentOption[T]) *Agent[T] {
 	for _, opt := range options {
 		opt(agent)
 	}
-	return agent
+	// agentLLM, err := llm.CreateLLM(agent.llmConfig, agent.tools)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to create LLM: %w", err)
+	// }
+	return agent, nil
 }
 
-// WithLLM sets the LLM for the agent
+// WithLLM sets the LLM for the agent (for advanced users)
 func WithLLM[T any](llm LLM) AgentOption[T] {
 	return func(a *Agent[T]) {
 		a.llm = llm
+	}
+}
+
+// WithLLMConfig sets the LLM configuration and creates the appropriate LLM
+func WithLLMConfig[T any](config *LLMConfig) AgentOption[T] {
+	return func(a *Agent[T]) {
+		a.llmConfig = config
 	}
 }
 
