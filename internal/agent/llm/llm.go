@@ -11,16 +11,27 @@ type LLM interface {
 	Call(ctx context.Context, msgs []LLMMessage) (LLMMessage, error)
 }
 
-func CreateLLM(cfg LLMConfig, tools []LLMTool) (LLM, error) {
+func CreateLLM(cfg LLMConfig, tools map[string]LLMTool[LLMToolResult]) (LLM, error) {
 	switch cfg.Type {
 	case LLMTypeOpenAI:
 		return newOpenAILLM(
 			withOpenAIAPIKey(cfg.APIKey),
 			withOpenAILLMModel(cfg.Model),
 			withOpenAILLMTemperature(cfg.Temperature),
-			withOpenAITools(tools),
+			withOpenAITools(toSlice(tools)),
 		), nil
 	default:
 		return nil, ErrUnsupportedLLMType
 	}
+}
+
+func toSlice(tools map[string]LLMTool[LLMToolResult]) []LLMTool[LLMToolResult] {
+	if len(tools) == 0 {
+		return nil
+	}
+	slice := make([]LLMTool[LLMToolResult], 0, len(tools))
+	for _, tool := range tools {
+		slice = append(slice, tool)
+	}
+	return slice
 }

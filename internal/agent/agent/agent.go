@@ -43,10 +43,10 @@ OUTPUT SCHEMA:
 `)
 
 type Agent[T any] struct {
-	llm          LLM
-	llmConfig    *llm.LLMConfig
-	tools        map[ToolName]Tool
-	limits       map[ToolName]int
+	llm          llm.LLM
+	llmConfig    llm.LLMConfig
+	tools        map[string]llm.LLMTool[llm.LLMToolResult]
+	limits       map[string]int
 	outputSchema *T
 	systemPrompt Prompt
 	behavior     string
@@ -57,41 +57,34 @@ type AgentOption[T any] func(*Agent[T])
 
 func NewAgent[T any](options ...AgentOption[T]) (*Agent[T], error) {
 	agent := &Agent[T]{
-		tools:  make(map[ToolName]Tool),
-		limits: make(map[ToolName]int),
+		tools:  make(map[string]llm.LLMTool[llm.LLMToolResult]),
+		limits: make(map[string]int),
 	}
 	for _, opt := range options {
 		opt(agent)
 	}
-	// agentLLM, err := llm.CreateLLM(agent.llmConfig, agent.tools)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to create LLM: %w", err)
-	// }
+
+	agentLLM, err := llm.CreateLLM(agent.llmConfig, agent.tools)
+	if err != nil {
+		return nil, err
+	}
+	agent.llm = agentLLM
+
 	return agent, nil
 }
 
-// WithLLM sets the LLM for the agent (for advanced users)
-func WithLLM[T any](llm LLM) AgentOption[T] {
-	return func(a *Agent[T]) {
-		a.llm = llm
-	}
-}
-
-// WithLLMConfig sets the LLM configuration and creates the appropriate LLM
-func WithLLMConfig[T any](config *LLMConfig) AgentOption[T] {
+func WithLLMConfig[T any](config llm.LLMConfig) AgentOption[T] {
 	return func(a *Agent[T]) {
 		a.llmConfig = config
 	}
 }
 
-// WithBehavior sets the behavior description for the agent
 func WithBehavior[T any](behavior string) AgentOption[T] {
 	return func(a *Agent[T]) {
 		a.behavior = behavior
 	}
 }
 
-// WithOutputSchema sets the output schema for type-safe result parsing
 func WithOutputSchema[T any](schema *T) AgentOption[T] {
 	return func(a *Agent[T]) {
 		a.outputSchema = schema
@@ -104,37 +97,30 @@ func WithOutputSchema[T any](schema *T) AgentOption[T] {
 	}
 }
 
-// WithSystemPrompt sets a custom system prompt template
 func WithSystemPrompt[T any](prompt Prompt) AgentOption[T] {
 	return func(a *Agent[T]) {
 		a.systemPrompt = prompt
 	}
 }
 
-// WithTool adds a tool to the agent
-func WithTool[T any](name ToolName, tool Tool) AgentOption[T] {
+func WithTool[T any](name string, tool llm.LLMTool[llm.LLMToolResult]) AgentOption[T] {
 	return func(a *Agent[T]) {
 		a.tools[name] = tool
 	}
 }
 
-// WithToolLimit sets the usage limit for a specific tool
-func WithToolLimit[T any](name ToolName, limit int) AgentOption[T] {
+func WithToolLimit[T any](name string, limit int) AgentOption[T] {
 	return func(a *Agent[T]) {
 		a.limits[name] = limit
 	}
 }
 
 type AgentState struct {
-	Messages []LLMMessage
+	Messages []llm.LLMMessage
 }
 
-func (a *AgentState) AddMessage(msg LLMMessage) {
+func (a *AgentState) AddMessage(msg llm.LLMMessage) {
 	a.Messages = append(a.Messages, msg)
-}
-
-type LLM interface {
-	Call(ctx context.Context, msgs []LLMMessage) (LLMMessage, error)
 }
 
 func (a *Agent[T]) Run(ctx context.Context) (*AgentResult[T], error) {
@@ -143,10 +129,10 @@ func (a *Agent[T]) Run(ctx context.Context) (*AgentResult[T], error) {
 	if err != nil {
 		return nil, err
 	}
-	usage := make(map[ToolName]int)
+	usage := make(map[string]int)
 
 	for {
-		if isLimitReached(usage, a.limits) {
+		if a.isLimitReached(usage) {
 			res, err := a.createResult(state)
 			if err != nil {
 				return nil, fmt.Errorf("%w: %s", ErrLimitReached, err)
@@ -159,8 +145,8 @@ func (a *Agent[T]) Run(ctx context.Context) (*AgentResult[T], error) {
 			return nil, fmt.Errorf("%w: %s", ErrLLMCall, err)
 		}
 
-		if llmMessage.ToolCall != nil {
-			if err := a.callTool(&llmMessage, usage); err != nil {
+		if llmMessage.ToolCalls != nil {
+			if err := a.callTools(llmMessage, usage); err != nil {
 				return nil, fmt.Errorf("%w: %s", ErrToolError, err)
 			}
 		}
@@ -180,18 +166,18 @@ func (a *Agent[T]) Run(ctx context.Context) (*AgentResult[T], error) {
 }
 
 func (a *Agent[T]) createInitState() (*AgentState, error) {
-	systemPrompt, err := a.createSystemPrompt(make(map[ToolName]int))
+	systemPrompt, err := a.createSystemPrompt(make(map[string]int))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create system prompt: %w", err)
 	}
 	return &AgentState{
-		Messages: []LLMMessage{
-			NewLLMMessage(LLMMessageTypeSystem, systemPrompt),
+		Messages: []llm.LLMMessage{
+			llm.NewLLMMessage(llm.LLMMessageTypeSystem, systemPrompt),
 		},
 	}, nil
 }
 
-func (a *Agent[T]) createSystemPrompt(usage map[ToolName]int) (string, error) {
+func (a *Agent[T]) createSystemPrompt(usage map[string]int) (string, error) {
 	schema := jsonschema.Reflect(a.outputSchema)
 	outputSchema, err := json.Marshal(schema)
 	if err != nil {
@@ -222,17 +208,19 @@ func (a *Agent[T]) createSystemPrompt(usage map[ToolName]int) (string, error) {
 	})
 }
 
-func (a *Agent[T]) callTool(llmMessage *LLMMessage, usage map[ToolName]int) error {
-	tool, ok := a.tools[llmMessage.ToolCall.ToolName]
-	if !ok {
-		return fmt.Errorf("%w: %s", ErrToolNotFound, llmMessage.ToolCall.ToolName)
+func (a *Agent[T]) callTools(llmMessage llm.LLMMessage, usage map[string]int) error {
+	for _, toolCall := range llmMessage.ToolCalls {
+		tool, ok := a.tools[toolCall.ToolName]
+		if !ok {
+			return fmt.Errorf("%w: %s", ErrToolNotFound, toolCall.ToolName)
+		}
+		toolRes, err := tool.Call(toolCall.ID, toolCall.Args)
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrToolError, err)
+		}
+		usage[toolCall.ToolName]++
+		llmMessage.ToolResults = append(llmMessage.ToolResults, toolRes)
 	}
-	toolRes, err := tool.Call(llmMessage.ToolCall.Args)
-	if err != nil {
-		return fmt.Errorf("%w: %s", ErrToolError, err)
-	}
-	usage[llmMessage.ToolCall.ToolName]++
-	llmMessage.ToolResult = toolRes
 
 	return nil
 }
@@ -258,4 +246,14 @@ func (a *Agent[T]) createResult(state *AgentState) (*AgentResult[T], error) {
 		Data:     &data,
 		Messages: state.Messages,
 	}, nil
+}
+
+func (a *Agent[T]) isLimitReached(usage map[string]int) bool {
+	limitReached := make(map[string]bool)
+	for toolName, limit := range a.limits {
+		if usage, exists := usage[toolName]; exists && usage >= limit {
+			limitReached[toolName] = true
+		}
+	}
+	return len(limitReached) == len(a.limits)
 }

@@ -1,13 +1,16 @@
 package agent
 
-import "fmt"
+import (
+	"fmt"
+	"reddit-analyzer/internal/agent/llm"
+)
 
 type AgentResult[T any] struct {
-	Data     *T           `json:"data"`
-	Messages []LLMMessage `json:"messages"`
+	Data     *T               `json:"data"`
+	Messages []llm.LLMMessage `json:"messages"`
 }
 
-func NewAgentResult[T any](data *T, messages []LLMMessage) (*AgentResult[T], error) {
+func NewAgentResult[T any](data *T, messages []llm.LLMMessage) (*AgentResult[T], error) {
 	if data == nil {
 		return nil, fmt.Errorf("%w: data cannot be nil", ErrInvalidResultSchema)
 	}
