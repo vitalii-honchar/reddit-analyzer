@@ -36,6 +36,9 @@ func (f *FilterPostsTool) CreateLLMTool() llm.LLMTool {
 				"posts": map[string]any{
 					"type":        "array",
 					"description": "Array of Reddit posts to filter",
+					"items": map[string]any{
+						"type": "object",
+					},
 				},
 				"min_score": map[string]any{
 					"type":        "number",

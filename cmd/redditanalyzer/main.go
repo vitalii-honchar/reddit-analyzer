@@ -1,44 +1,91 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"os"
+	"sort"
+	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vartanbeno/go-reddit/v2/reddit"
+	"reddit-analyzer/internal/redditanalyzer/agent"
+	"reddit-analyzer/internal/redditanalyzer/domain"
 )
 
 func main() {
+	// Set up logger with human-readable format
 	log := logrus.New()
-	log.SetFormatter(&logrus.JSONFormatter{
-		PrettyPrint: true,
-		TimestampFormat: "2006-01-02 15:04:05",
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+		DisableColors: false,
 	})
 
+	// Create the Reddit Research Agent
+	researchAgent, err := agent.NewRedditResearchAgent(log)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create Reddit Research Agent")
+	}
+
+	// Get user input
+	fmt.Print("Enter project direction: ")
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	projectDirection := strings.TrimSpace(scanner.Text())
+
+	if projectDirection == "" {
+		fmt.Println("Project direction cannot be empty")
+		return
+	}
+
+	fmt.Printf("\n🔍 Analyzing: \"%s\"\n", projectDirection)
+
+	// Run the analysis
 	ctx := context.Background()
-	redditClient := reddit.DefaultClient()
-	posts, _, err := redditClient.Subreddit.TopPosts(ctx, "golang", &reddit.ListPostOptions{
-		ListOptions: reddit.ListOptions{
-			Limit: 10,
-		},
-		Time: "day",
+	result, err := researchAgent.AnalyzeProject(ctx, projectDirection)
+	if err != nil {
+		log.WithError(err).Fatal("Analysis failed")
+	}
+
+	// Display results
+	displayResults(result)
+}
+
+func displayResults(result *domain.AnalysisResult) {
+	fmt.Printf("\n🎯 Selected subreddits: %s\n", strings.Join(result.SelectedSubreddits, ", "))
+	fmt.Printf("📥 Fetching posts (last 7 days): %d posts found\n", result.PostsAnalyzed)
+	fmt.Printf("🔍 Filtering by engagement: %d posts selected\n", result.PostsFiltered)
+	fmt.Printf("🤖 Evaluating opportunities...\n\n")
+
+	if len(result.Opportunities) == 0 {
+		fmt.Println("No opportunities found matching the criteria.")
+		return
+	}
+
+	// Sort opportunities by score (descending)
+	sort.Slice(result.Opportunities, func(i, j int) bool {
+		return result.Opportunities[i].Analysis.Score > result.Opportunities[j].Analysis.Score
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	// for _, post := range posts {
-	// 	log.WithField("title", post.Title).
-	// 		WithField("id", post.ID).
-	// 		WithField("score", post.Score).
-	// 		WithField("created", post.Created).
-	// 		Info("Post details")
-	// }
-
-	post, _, err := redditClient.Post.Get(ctx, posts[0].ID)
-	if err != nil {
-		log.Fatal(err)
-	}
+	fmt.Println("HIDDEN OPPORTUNITIES FOUND:")
 	
+	medals := []string{"🥇", "🥈", "🥉"}
+	for i, opportunity := range result.Opportunities {
+		if i >= 3 {
+			break // Show only top 3
+		}
+		
+		medal := medals[i]
+		if i >= len(medals) {
+			medal = "🏅"
+		}
 
-	log.WithField("post", post).Info("Post details fetched by ID")
+		fmt.Printf("%s SCORE: %d/5 - %s\n", medal, opportunity.Analysis.Score, opportunity.Analysis.ProblemSummary)
+		fmt.Printf("   Problem: %s\n", opportunity.Post.Title)
+		fmt.Printf("   Subreddit: r/%s | Upvotes: %d | Comments: %d\n", opportunity.Post.Subreddit, opportunity.Post.Score, opportunity.Post.NumComments)
+		fmt.Printf("   Analysis: %s\n", opportunity.Analysis.MarketAnalysis)
+		fmt.Printf("   Link: reddit.com/r/%s/comments/%s\n\n", opportunity.Post.Subreddit, opportunity.Post.ID)
+	}
+
+	fmt.Printf("Analysis complete: %d opportunities found from %d posts analyzed\n", len(result.Opportunities), result.PostsFiltered)
 }

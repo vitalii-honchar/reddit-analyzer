@@ -36,7 +36,7 @@ func NewSubredditSelectorTool() (*SubredditSelectorTool, error) {
 	)
 
 	return &SubredditSelectorTool{
-		client: client,
+		client: &client,
 	}, nil
 }
 
@@ -69,12 +69,12 @@ func (s *SubredditSelectorTool) selectSubreddits(id string, args map[string]any)
 	prompt := s.buildSelectionPrompt(projectDirection)
 
 	resp, err := s.client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
-		Messages: openai.F([]openai.ChatCompletionMessageParamUnion{
+		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage(prompt),
-		}),
-		Model:       openai.F(openai.ChatModelGPT4o),
-		Temperature: openai.F(0.3),
-		MaxTokens:   openai.F(int64(1000)),
+		},
+		Model:       openai.ChatModelGPT4o,
+		Temperature: openai.Float(0.3),
+		MaxTokens:   openai.Int(int64(1000)),
 	})
 	if err != nil {
 		return SubredditSelectorResult{}, fmt.Errorf("OpenAI API call failed: %w", err)

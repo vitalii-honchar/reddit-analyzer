@@ -35,7 +35,7 @@ func NewEvaluatePostTool() (*EvaluatePostTool, error) {
 	)
 
 	return &EvaluatePostTool{
-		client: client,
+		client: &client,
 	}, nil
 }
 
@@ -90,12 +90,12 @@ func (e *EvaluatePostTool) evaluatePost(id string, args map[string]any) (Evaluat
 	prompt := e.buildEvaluationPrompt(title, content, subreddit, score, comments, projectDirection)
 
 	resp, err := e.client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
-		Messages: openai.F([]openai.ChatCompletionMessageParamUnion{
+		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage(prompt),
-		}),
-		Model:       openai.F(openai.ChatModelGPT4o),
-		Temperature: openai.F(0.2),
-		MaxTokens:   openai.F(int64(800)),
+		},
+		Model:       openai.ChatModelGPT4o,
+		Temperature: openai.Float(0.2),
+		MaxTokens:   openai.Int(int64(800)),
 	})
 	if err != nil {
 		return EvaluatePostResult{}, fmt.Errorf("OpenAI API call failed: %w", err)
