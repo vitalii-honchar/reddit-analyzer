@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"reddit-analyzer/internal/redditanalyzer/domain"
 
 	"github.com/openai/openai-go"

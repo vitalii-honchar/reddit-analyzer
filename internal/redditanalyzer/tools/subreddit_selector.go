@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"reddit-analyzer/internal/redditanalyzer/domain"
 
 	"github.com/openai/openai-go"
@@ -86,6 +87,9 @@ func (s *SubredditSelectorTool) selectSubreddits(id string, args map[string]any)
 
 	content := resp.Choices[0].Message.Content
 	
+	// Clean the response - remove markdown code blocks if present
+	content = cleanJSONResponse(content)
+	
 	var selection domain.SubredditSelection
 	if err := json.Unmarshal([]byte(content), &selection); err != nil {
 		return SubredditSelectorResult{}, fmt.Errorf("failed to parse OpenAI response: %w", err)
@@ -127,4 +131,19 @@ Examples of GOOD selections:
 - For "productivity": ["productivity", "ADHD", "getmotivated", "studytips", "TimeManagement"]
 
 Select subreddits that will reveal genuine problems without obvious solutions.`, projectDirection, projectDirection)
+}
+
+// cleanJSONResponse removes markdown code blocks and extra formatting from OpenAI responses
+func cleanJSONResponse(content string) string {
+	// Remove markdown code blocks (```json ... ``` or ``` ... ```)
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(content, "```json") {
+		content = strings.TrimPrefix(content, "```json")
+	} else if strings.HasPrefix(content, "```") {
+		content = strings.TrimPrefix(content, "```")
+	}
+	if strings.HasSuffix(content, "```") {
+		content = strings.TrimSuffix(content, "```")
+	}
+	return strings.TrimSpace(content)
 }
