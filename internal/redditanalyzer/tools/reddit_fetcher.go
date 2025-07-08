@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reddit-analyzer/internal/redditanalyzer/domain"
+	"strings"
 	"time"
 
 	"github.com/vartanbeno/go-reddit/v2/reddit"
@@ -113,6 +114,9 @@ func (t *TopSubredditPostsTool) fetchPosts(id string, args map[string]any) (TopS
 
 // fetchSubredditPosts fetches posts from a single subreddit
 func (t *TopSubredditPostsTool) fetchSubredditPosts(subreddit string, limit int, timeframe string) ([]domain.RedditPost, error) {
+	// Clean subreddit name - remove "r/" prefix if present
+	cleanSubreddit := strings.TrimPrefix(subreddit, "r/")
+	cleanSubreddit = strings.TrimPrefix(cleanSubreddit, "/")
 	opts := &reddit.ListPostOptions{
 		ListOptions: reddit.ListOptions{
 			Limit: limit,
@@ -120,9 +124,9 @@ func (t *TopSubredditPostsTool) fetchSubredditPosts(subreddit string, limit int,
 		Time: timeframe,
 	}
 
-	posts, _, err := t.client.Subreddit.TopPosts(context.Background(), subreddit, opts)
+	posts, _, err := t.client.Subreddit.TopPosts(context.Background(), cleanSubreddit, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch posts from r/%s: %w", subreddit, err)
+		return nil, fmt.Errorf("failed to fetch posts from r/%s: %w", cleanSubreddit, err)
 	}
 
 	var result []domain.RedditPost

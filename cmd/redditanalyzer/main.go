@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -27,16 +25,10 @@ func main() {
 		log.WithError(err).Fatal("Failed to create Reddit Research Agent")
 	}
 
-	// Get user input
+	// Hardcode cybersecurity for testing
+	projectDirection := "cybersecurity"
 	fmt.Print("Enter project direction: ")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	projectDirection := strings.TrimSpace(scanner.Text())
-
-	if projectDirection == "" {
-		fmt.Println("Project direction cannot be empty")
-		return
-	}
+	fmt.Println(projectDirection)
 
 	fmt.Printf("\n🔍 Analyzing: \"%s\"\n", projectDirection)
 

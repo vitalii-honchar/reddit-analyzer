@@ -73,7 +73,7 @@ func (s *SubredditSelectorTool) selectSubreddits(id string, args map[string]any)
 		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage(prompt),
 		},
-		Model:       openai.ChatModelGPT4o,
+		Model:       openai.ChatModelGPT4oMini,
 		Temperature: openai.Float(0.3),
 		MaxTokens:   openai.Int(int64(1000)),
 	})
@@ -88,11 +88,12 @@ func (s *SubredditSelectorTool) selectSubreddits(id string, args map[string]any)
 	content := resp.Choices[0].Message.Content
 	
 	// Clean the response - remove markdown code blocks if present
+	originalContent := content
 	content = cleanJSONResponse(content)
 	
 	var selection domain.SubredditSelection
 	if err := json.Unmarshal([]byte(content), &selection); err != nil {
-		return SubredditSelectorResult{}, fmt.Errorf("failed to parse OpenAI response: %w", err)
+		return SubredditSelectorResult{}, fmt.Errorf("failed to parse OpenAI response: %w\nOriginal: %q\nCleaned: %q", err, originalContent, content)
 	}
 
 	return SubredditSelectorResult{
@@ -135,15 +136,34 @@ Select subreddits that will reveal genuine problems without obvious solutions.`,
 
 // cleanJSONResponse removes markdown code blocks and extra formatting from OpenAI responses
 func cleanJSONResponse(content string) string {
-	// Remove markdown code blocks (```json ... ``` or ``` ... ```)
+	original := content
 	content = strings.TrimSpace(content)
-	if strings.HasPrefix(content, "```json") {
-		content = strings.TrimPrefix(content, "```json")
-	} else if strings.HasPrefix(content, "```") {
-		content = strings.TrimPrefix(content, "```")
+	
+	// Remove all backticks and common markdown patterns
+	content = strings.ReplaceAll(content, "```json", "")
+	content = strings.ReplaceAll(content, "```", "")
+	content = strings.TrimSpace(content)
+	
+	// Find JSON content between first { and last }
+	start := strings.Index(content, "{")
+	if start == -1 {
+		// If no JSON found, try to extract from original
+		start = strings.Index(original, "{")
+		if start == -1 {
+			return content
+		}
+		content = original
 	}
-	if strings.HasSuffix(content, "```") {
-		content = strings.TrimSuffix(content, "```")
+	
+	end := strings.LastIndex(content, "}")
+	if end == -1 || end <= start {
+		return content
 	}
-	return strings.TrimSpace(content)
+	
+	jsonContent := content[start : end+1]
+	
+	// Additional cleanup - remove any remaining backticks
+	jsonContent = strings.ReplaceAll(jsonContent, "`", "")
+	
+	return strings.TrimSpace(jsonContent)
 }

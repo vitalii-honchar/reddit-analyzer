@@ -94,7 +94,7 @@ func (e *EvaluatePostTool) evaluatePost(id string, args map[string]any) (Evaluat
 		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage(prompt),
 		},
-		Model:       openai.ChatModelGPT4o,
+		Model:       openai.ChatModelGPT4oMini,
 		Temperature: openai.Float(0.2),
 		MaxTokens:   openai.Int(int64(800)),
 	})
@@ -108,9 +108,38 @@ func (e *EvaluatePostTool) evaluatePost(id string, args map[string]any) (Evaluat
 
 	content_response := resp.Choices[0].Message.Content
 	
+	// Clean the response to extract JSON using more robust cleaning
+	originalResponse := content_response
+	cleanedResponse := strings.TrimSpace(content_response)
+	
+	// Remove all backticks and common markdown patterns
+	cleanedResponse = strings.ReplaceAll(cleanedResponse, "```json", "")
+	cleanedResponse = strings.ReplaceAll(cleanedResponse, "```", "")
+	cleanedResponse = strings.TrimSpace(cleanedResponse)
+	
+	// Find JSON content between first { and last }
+	start := strings.Index(cleanedResponse, "{")
+	if start == -1 {
+		start = strings.Index(originalResponse, "{")
+		if start == -1 {
+			return EvaluatePostResult{}, fmt.Errorf("no JSON found in response: %q", originalResponse)
+		}
+		cleanedResponse = originalResponse
+	}
+	
+	end := strings.LastIndex(cleanedResponse, "}")
+	if end == -1 || end <= start {
+		return EvaluatePostResult{}, fmt.Errorf("invalid JSON structure in response: %q", cleanedResponse)
+	}
+	
+	jsonContent := cleanedResponse[start : end+1]
+	// Additional cleanup - remove any remaining backticks
+	jsonContent = strings.ReplaceAll(jsonContent, "`", "")
+	jsonContent = strings.TrimSpace(jsonContent)
+	
 	var analysis domain.OpportunityAnalysis
-	if err := json.Unmarshal([]byte(content_response), &analysis); err != nil {
-		return EvaluatePostResult{}, fmt.Errorf("failed to parse OpenAI response: %w", err)
+	if err := json.Unmarshal([]byte(jsonContent), &analysis); err != nil {
+		return EvaluatePostResult{}, fmt.Errorf("failed to parse OpenAI response: %w\nOriginal: %q\nCleaned: %q", err, originalResponse, jsonContent)
 	}
 
 	// Set the post ID from the original post data
