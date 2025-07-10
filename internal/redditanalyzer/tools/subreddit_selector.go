@@ -19,6 +19,11 @@ type SubredditSelectorTool struct {
 	client *openai.Client
 }
 
+// SubredditSelectorParams represents the parameters for subreddit selection
+type SubredditSelectorParams struct {
+	ProjectDirection string `json:"project_direction"`
+}
+
 // SubredditSelectorResult represents the result of subreddit selection
 type SubredditSelectorResult struct {
 	llm.BaseLLMToolResult
@@ -46,26 +51,14 @@ func (s *SubredditSelectorTool) CreateLLMTool() llm.LLMTool {
 	return llm.NewLLMTool(
 		llm.WithLLMToolName("select_subreddits"),
 		llm.WithLLMToolDescription("AI intelligently selects 3-5 niche subreddits based on project direction, avoiding obvious entrepreneurship communities"),
-		llm.WithLLMToolParametersSchema(map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"project_direction": map[string]any{
-					"type":        "string",
-					"description": "The user's project direction or domain (e.g., 'cybersecurity project', 'company public speaking')",
-				},
-			},
-			"required": []string{"project_direction"},
-		}),
+		llm.WithLLMToolParametersSchema[SubredditSelectorParams](),
 		llm.WithLLMToolCall(s.selectSubreddits),
 	)
 }
 
 // selectSubreddits performs the actual subreddit selection using OpenAI
-func (s *SubredditSelectorTool) selectSubreddits(id string, args map[string]any) (SubredditSelectorResult, error) {
-	projectDirection, ok := args["project_direction"].(string)
-	if !ok {
-		return SubredditSelectorResult{}, fmt.Errorf("project_direction must be a string")
-	}
+func (s *SubredditSelectorTool) selectSubreddits(id string, params SubredditSelectorParams) (SubredditSelectorResult, error) {
+	projectDirection := params.ProjectDirection
 
 	prompt := s.buildSelectionPrompt(projectDirection)
 

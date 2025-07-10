@@ -1,16 +1,22 @@
 package llm
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+)
 
-// ErrInvalidArguments is returned when tool arguments are invalid
-var ErrInvalidArguments = errors.New("invalid arguments")
+var (
+	// ErrInvalidArguments is returned when tool arguments are invalid
+	ErrInvalidArguments = errors.New("invalid arguments")
+)
 
 // LLMTool represents a tool that can be called by an LLM
 type LLMTool struct {
-	Name             string                                                      `json:"name"`
-	ParametersSchema map[string]any                                              `json:"parameters_schema"`
-	Description      string                                                      `json:"description"`
-	Call             func(id string, args map[string]any) (LLMToolResult, error) `json:"-"`
+	Name             string                                              `json:"name"`
+	ParametersSchema any                                                 `json:"parameters_schema"`
+	Description      string                                              `json:"description"`
+	Call             func(id string, args string) (LLMToolResult, error) `json:"-"`
 }
 
 // LLMToolOption is a function that configures an LLMTool
@@ -22,6 +28,7 @@ func NewLLMTool(options ...LLMToolOption) LLMTool {
 	for _, opt := range options {
 		opt(tool)
 	}
+
 	return *tool
 }
 
@@ -39,21 +46,26 @@ func WithLLMToolDescription(description string) LLMToolOption {
 	}
 }
 
-// WithLLMToolParametersSchema sets the parameters schema for the tool
-func WithLLMToolParametersSchema(schema map[string]any) LLMToolOption {
+func WithLLMToolParametersSchema[T any]() LLMToolOption {
 	return func(tool *LLMTool) {
-		tool.ParametersSchema = schema
+		tool.ParametersSchema = new(T)
 	}
 }
 
 // WithLLMToolCall sets the call function for the tool
-func WithLLMToolCall[T LLMToolResult](callFunc func(id string, args map[string]any) (T, error)) LLMToolOption {
+func WithLLMToolCall[P any, T LLMToolResult](callFunc func(callID string, args P) (T, error)) LLMToolOption {
 	return func(tool *LLMTool) {
-		tool.Call = func(id string, args map[string]any) (LLMToolResult, error) {
-			result, err := callFunc(id, args)
+		tool.Call = func(callID string, args string) (LLMToolResult, error) {
+			var typedArgs P
+			if err := json.Unmarshal([]byte(args), &typedArgs); err != nil {
+				return nil, fmt.Errorf("%w: failed to unmarshal arguments: %v", ErrInvalidArguments, err)
+			}
+
+			result, err := callFunc(callID, typedArgs)
 			if err != nil {
 				return nil, err
 			}
+
 			return result, nil
 		}
 	}
@@ -76,13 +88,13 @@ func (r BaseLLMToolResult) GetID() string {
 
 // LLMToolCall represents a call to an LLM tool
 type LLMToolCall struct {
-	ID       string         `json:"id"`
-	ToolName string         `json:"tool_name"`
-	Args     map[string]any `json:"args"`
+	ID       string `json:"id"`
+	ToolName string `json:"tool_name"`
+	Args     string `json:"args"`
 }
 
 // NewLLMToolCall creates a new LLM tool call
-func NewLLMToolCall(id string, toolName string, args map[string]any) LLMToolCall {
+func NewLLMToolCall(id string, toolName string, args string) LLMToolCall {
 	return LLMToolCall{
 		ID:       id,
 		ToolName: toolName,

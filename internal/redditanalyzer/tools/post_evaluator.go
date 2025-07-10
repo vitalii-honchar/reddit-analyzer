@@ -18,6 +18,12 @@ type EvaluatePostTool struct {
 	client *openai.Client
 }
 
+// EvaluatePostParams represents the parameters for post evaluation
+type EvaluatePostParams struct {
+	Post             domain.RedditPost `json:"post"`
+	ProjectDirection string            `json:"project_direction"`
+}
+
 // EvaluatePostResult represents the result of post evaluation
 type EvaluatePostResult struct {
 	llm.BaseLLMToolResult
@@ -45,50 +51,17 @@ func (e *EvaluatePostTool) CreateLLMTool() llm.LLMTool {
 	return llm.NewLLMTool(
 		llm.WithLLMToolName("evaluate_post"),
 		llm.WithLLMToolDescription("Uses LLM to rate a Reddit post 1-5 for hidden indie hacker opportunities"),
-		llm.WithLLMToolParametersSchema(map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"post": map[string]any{
-					"type":        "object",
-					"description": "Reddit post to evaluate for opportunity potential",
-				},
-				"project_direction": map[string]any{
-					"type":        "string",
-					"description": "The user's project direction for context",
-				},
-			},
-			"required": []string{"post", "project_direction"},
-		}),
+		llm.WithLLMToolParametersSchema[EvaluatePostParams](),
 		llm.WithLLMToolCall(e.evaluatePost),
 	)
 }
 
 // evaluatePost performs the actual post evaluation using OpenAI
-func (e *EvaluatePostTool) evaluatePost(id string, args map[string]any) (EvaluatePostResult, error) {
-	postData, ok := args["post"].(map[string]interface{})
-	if !ok {
-		return EvaluatePostResult{}, fmt.Errorf("post must be an object")
-	}
+func (e *EvaluatePostTool) evaluatePost(id string, params EvaluatePostParams) (EvaluatePostResult, error) {
+	post := params.Post
+	projectDirection := params.ProjectDirection
 
-	projectDirection, ok := args["project_direction"].(string)
-	if !ok {
-		return EvaluatePostResult{}, fmt.Errorf("project_direction must be a string")
-	}
-
-	// Extract post information
-	title, _ := postData["title"].(string)
-	content, _ := postData["content"].(string)
-	subreddit, _ := postData["subreddit"].(string)
-	score := 0
-	if s, ok := postData["score"].(float64); ok {
-		score = int(s)
-	}
-	comments := 0
-	if c, ok := postData["num_comments"].(float64); ok {
-		comments = int(c)
-	}
-
-	prompt := e.buildEvaluationPrompt(title, content, subreddit, score, comments, projectDirection)
+	prompt := e.buildEvaluationPrompt(post.Title, post.Content, post.Subreddit, post.Score, post.NumComments, projectDirection)
 
 	resp, err := e.client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
 		Messages: []openai.ChatCompletionMessageParamUnion{
@@ -142,10 +115,8 @@ func (e *EvaluatePostTool) evaluatePost(id string, args map[string]any) (Evaluat
 		return EvaluatePostResult{}, fmt.Errorf("failed to parse OpenAI response: %w\nOriginal: %q\nCleaned: %q", err, originalResponse, jsonContent)
 	}
 
-	// Set the post ID from the original post data
-	if postID, ok := postData["id"].(string); ok {
-		analysis.PostID = postID
-	}
+	// Set the post ID from the post
+	analysis.PostID = post.ID
 
 	return EvaluatePostResult{
 		BaseLLMToolResult: llm.BaseLLMToolResult{ID: id},

@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"fmt"
 	"reddit-analyzer/internal/redditanalyzer/domain"
 	"sort"
 
@@ -11,12 +10,20 @@ import (
 // FilterPostsTool filters Reddit posts by engagement metrics and criteria
 type FilterPostsTool struct{}
 
+// FilterPostsParams represents the parameters for filtering posts
+type FilterPostsParams struct {
+	Posts           []domain.RedditPost `json:"posts"`
+	MinScore        int                 `json:"min_score,omitempty"`
+	MinComments     int                 `json:"min_comments,omitempty"`
+	RequireSelfPost bool                `json:"require_self_post,omitempty"`
+}
+
 // FilterPostsResult represents the result of filtering posts
 type FilterPostsResult struct {
 	llm.BaseLLMToolResult
-	FilteredPosts []domain.RedditPost `json:"filtered_posts"`
-	OriginalCount int                 `json:"original_count"`
-	FilteredCount int                 `json:"filtered_count"`
+	FilteredPosts []domain.RedditPost   `json:"filtered_posts"`
+	OriginalCount int                   `json:"original_count"`
+	FilteredCount int                   `json:"filtered_count"`
 	Criteria      domain.FilterCriteria `json:"criteria"`
 }
 
@@ -30,81 +37,29 @@ func (f *FilterPostsTool) CreateLLMTool() llm.LLMTool {
 	return llm.NewLLMTool(
 		llm.WithLLMToolName("filter_posts"),
 		llm.WithLLMToolDescription("Filters Reddit posts by engagement metrics and criteria"),
-		llm.WithLLMToolParametersSchema(map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"posts": map[string]any{
-					"type":        "array",
-					"description": "Array of Reddit posts to filter",
-					"items": map[string]any{
-						"type": "object",
-					},
-				},
-				"min_score": map[string]any{
-					"type":        "number",
-					"description": "Minimum upvote score (default: 10)",
-					"default":     10,
-				},
-				"min_comments": map[string]any{
-					"type":        "number",
-					"description": "Minimum number of comments (default: 5)",
-					"default":     5,
-				},
-				"require_self_post": map[string]any{
-					"type":        "boolean",
-					"description": "Only include self posts (text posts, not links) (default: false)",
-					"default":     false,
-				},
-			},
-			"required": []string{"posts"},
-		}),
+		llm.WithLLMToolParametersSchema[FilterPostsParams](),
 		llm.WithLLMToolCall(f.filterPosts),
 	)
 }
 
 // filterPosts performs the actual post filtering
-func (f *FilterPostsTool) filterPosts(id string, args map[string]any) (FilterPostsResult, error) {
-	postsInterface, ok := args["posts"].([]interface{})
-	if !ok {
-		return FilterPostsResult{}, fmt.Errorf("posts must be an array")
-	}
+func (f *FilterPostsTool) filterPosts(id string, params FilterPostsParams) (FilterPostsResult, error) {
+	posts := params.Posts
 
-	// Parse filter criteria
+	// Parse filter criteria with defaults
 	criteria := domain.FilterCriteria{
 		MinScore:        10,
 		MinComments:     5,
 		RequireSelfPost: false,
 	}
 
-	if minScore, exists := args["min_score"]; exists {
-		if score, ok := minScore.(float64); ok {
-			criteria.MinScore = int(score)
-		}
+	if params.MinScore > 0 {
+		criteria.MinScore = params.MinScore
 	}
-
-	if minComments, exists := args["min_comments"]; exists {
-		if comments, ok := minComments.(float64); ok {
-			criteria.MinComments = int(comments)
-		}
+	if params.MinComments > 0 {
+		criteria.MinComments = params.MinComments
 	}
-
-	if requireSelf, exists := args["require_self_post"]; exists {
-		if require, ok := requireSelf.(bool); ok {
-			criteria.RequireSelfPost = require
-		}
-	}
-
-	// Convert interface{} posts to domain.RedditPost
-	var posts []domain.RedditPost
-	for _, postInterface := range postsInterface {
-		if postData, ok := postInterface.(map[string]interface{}); ok {
-			post, err := f.convertToRedditPost(postData)
-			if err != nil {
-				continue // Skip invalid posts
-			}
-			posts = append(posts, post)
-		}
-	}
+	criteria.RequireSelfPost = params.RequireSelfPost
 
 	originalCount := len(posts)
 	filteredPosts := f.applyFilters(posts, criteria)
@@ -161,46 +116,3 @@ func (f *FilterPostsTool) applyFilters(posts []domain.RedditPost, criteria domai
 	return filtered
 }
 
-// convertToRedditPost converts a map to a RedditPost struct
-func (f *FilterPostsTool) convertToRedditPost(data map[string]interface{}) (domain.RedditPost, error) {
-	post := domain.RedditPost{}
-
-	if id, ok := data["id"].(string); ok {
-		post.ID = id
-	}
-	if title, ok := data["title"].(string); ok {
-		post.Title = title
-	}
-	if content, ok := data["content"].(string); ok {
-		post.Content = content
-	}
-	if subreddit, ok := data["subreddit"].(string); ok {
-		post.Subreddit = subreddit
-	}
-	if author, ok := data["author"].(string); ok {
-		post.Author = author
-	}
-	if score, ok := data["score"].(float64); ok {
-		post.Score = int(score)
-	}
-	if ratio, ok := data["upvote_ratio"].(float64); ok {
-		post.UpvoteRatio = ratio
-	}
-	if comments, ok := data["num_comments"].(float64); ok {
-		post.NumComments = int(comments)
-	}
-	if url, ok := data["url"].(string); ok {
-		post.URL = url
-	}
-	if permalink, ok := data["permalink"].(string); ok {
-		post.Permalink = permalink
-	}
-	if isSelf, ok := data["is_self_post"].(bool); ok {
-		post.IsSelfPost = isSelf
-	}
-	if flair, ok := data["flair"].(string); ok {
-		post.Flair = flair
-	}
-
-	return post, nil
-}

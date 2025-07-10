@@ -18,7 +18,7 @@ type RedditPost struct {
 	URL           string    `json:"url"`
 	Permalink     string    `json:"permalink"`
 	IsSelfPost    bool      `json:"is_self_post"`
-	Flair         string    `json:"flair,omitempty"`
+	Flair         *string   `json:"flair,omitempty"`
 }
 
 // SubredditSelection represents AI-selected subreddits for analysis

@@ -16,6 +16,13 @@ type TopSubredditPostsTool struct {
 	client *reddit.Client
 }
 
+// TopSubredditPostsParams represents the parameters for fetching Reddit posts
+type TopSubredditPostsParams struct {
+	Subreddits []string `json:"subreddits"`
+	Limit      int      `json:"limit,omitempty"`
+	Timeframe  string   `json:"timeframe,omitempty"`
+}
+
 // TopSubredditPostsResult represents the result of fetching Reddit posts
 type TopSubredditPostsResult struct {
 	llm.BaseLLMToolResult
@@ -35,60 +42,29 @@ func (t *TopSubredditPostsTool) CreateLLMTool() llm.LLMTool {
 	return llm.NewLLMTool(
 		llm.WithLLMToolName("fetch_reddit_posts"),
 		llm.WithLLMToolDescription("Fetches recent posts from multiple subreddits (last 7 days)"),
-		llm.WithLLMToolParametersSchema(map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"subreddits": map[string]any{
-					"type":        "array",
-					"items":       map[string]any{"type": "string"},
-					"description": "List of subreddit names to fetch posts from",
-				},
-				"limit": map[string]any{
-					"type":        "number",
-					"description": "Maximum number of posts to fetch per subreddit (default: 25)",
-					"default":     25,
-				},
-				"timeframe": map[string]any{
-					"type":        "string",
-					"description": "Time period for posts (week, day, month)",
-					"default":     "week",
-				},
-			},
-			"required": []string{"subreddits"},
-		}),
+		llm.WithLLMToolParametersSchema[TopSubredditPostsParams](),
 		llm.WithLLMToolCall(t.fetchPosts),
 	)
 }
 
 // fetchPosts performs the actual Reddit posts fetching
-func (t *TopSubredditPostsTool) fetchPosts(id string, args map[string]any) (TopSubredditPostsResult, error) {
-	subreddits, ok := args["subreddits"].([]interface{})
-	if !ok {
-		return TopSubredditPostsResult{}, fmt.Errorf("subreddits must be an array")
-	}
-
+func (t *TopSubredditPostsTool) fetchPosts(id string, params TopSubredditPostsParams) (TopSubredditPostsResult, error) {
+	subreddits := params.Subreddits
+	
 	limit := 25
-	if l, exists := args["limit"]; exists {
-		if limitFloat, ok := l.(float64); ok {
-			limit = int(limitFloat)
-		}
+	if params.Limit > 0 {
+		limit = params.Limit
 	}
 
 	timeframe := "week"
-	if t, exists := args["timeframe"]; exists {
-		if timeStr, ok := t.(string); ok {
-			timeframe = timeStr
-		}
+	if params.Timeframe != "" {
+		timeframe = params.Timeframe
 	}
 
 	var allPosts []domain.RedditPost
 	cutoffTime := time.Now().AddDate(0, 0, -7) // 7 days ago
 
-	for _, subredditInterface := range subreddits {
-		subredditName, ok := subredditInterface.(string)
-		if !ok {
-			continue
-		}
+	for _, subredditName := range subreddits {
 
 		posts, err := t.fetchSubredditPosts(subredditName, limit, timeframe)
 		if err != nil {
@@ -144,7 +120,7 @@ func (t *TopSubredditPostsTool) fetchSubredditPosts(subreddit string, limit int,
 			URL:         post.URL,
 			Permalink:   fmt.Sprintf("https://reddit.com%s", post.Permalink),
 			IsSelfPost:  post.IsSelfPost,
-			Flair:       "", // Flair field needs to be properly mapped
+			Flair:       nil, // Flair field is optional, set to nil
 		}
 		result = append(result, redditPost)
 	}

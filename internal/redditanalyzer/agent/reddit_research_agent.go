@@ -65,8 +65,7 @@ func NewRedditResearchAgent(logger *logrus.Logger) (*RedditResearchAgent, error)
 		agent.WithToolLimit[domain.AnalysisResult]("filter_posts", 1),        // Should only run once
 		agent.WithToolLimit[domain.AnalysisResult]("evaluate_post", 10),      // May need multiple calls for different posts
 		
-		agent.WithOutputSchema[domain.AnalysisResult](&domain.AnalysisResult{}),
-	)
+		)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ReAct agent: %w", err)
 	}
@@ -122,44 +121,7 @@ When you receive a project direction, follow this EXACT workflow efficiently:
 
 IMPORTANT: Always pass the original project direction to tools that require it (select_subreddits and evaluate_post).
 
-Focus on genuine pain points mentioned by domain professionals, not oversaturated markets.
-
-IMPORTANT OUTPUT FORMAT:
-You must return a JSON object with this exact structure:
-{
-  "project_direction": "user's project direction",
-  "selected_subreddits": ["r/subreddit1", "r/subreddit2"],
-  "posts_analyzed": 0,
-  "posts_filtered": 0,
-  "opportunities": [
-    {
-      "post": {
-        "id": "post_id",
-        "title": "post title",
-        "content": "post content",
-        "subreddit": "subreddit_name",
-        "score": 0,
-        "num_comments": 0,
-        "created_utc": "timestamp",
-        "url": "https://reddit.com/..."
-      },
-      "analysis": {
-        "post_id": "post_id",
-        "score": 4,
-        "problem_summary": "brief problem description",
-        "market_analysis": "market gap analysis",
-        "target_audience": "who has this problem",
-        "competition_note": "existing solutions or lack thereof",
-        "reasoning": "why this score was given"
-      },
-      "rank": 1
-    }
-  ],
-  "analysis_time": "2025-07-08T10:00:00Z",
-  "execution_time": "2m30s"
-}
-
-Return ONLY the JSON object, no additional text or formatting.`
+Focus on genuine pain points mentioned by domain professionals, not oversaturated markets.`
 }
 
 // AnalyzeProject performs the complete Reddit analysis workflow using ReAct agent
