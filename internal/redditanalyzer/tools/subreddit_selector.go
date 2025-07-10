@@ -21,13 +21,13 @@ type SubredditSelectorTool struct {
 
 // SubredditSelectorParams represents the parameters for subreddit selection
 type SubredditSelectorParams struct {
-	ProjectDirection string `json:"project_direction"`
+	ProjectDirection string `json:"project_direction" jsonschema_description:"The user's project direction or domain of interest (e.g. 'cybersecurity project', 'productivity tools') to guide subreddit selection"`
 }
 
 // SubredditSelectorResult represents the result of subreddit selection
 type SubredditSelectorResult struct {
 	llm.BaseLLMToolResult
-	Selection domain.SubredditSelection `json:"selection"`
+	Selection domain.SubredditSelection `json:"selection" jsonschema_description:"AI-selected subreddits with reasoning for why they were chosen for finding hidden opportunities"`
 }
 
 // NewSubredditSelectorTool creates a new SubredditSelectorTool

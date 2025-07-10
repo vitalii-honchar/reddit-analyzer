@@ -18,16 +18,16 @@ type TopSubredditPostsTool struct {
 
 // TopSubredditPostsParams represents the parameters for fetching Reddit posts
 type TopSubredditPostsParams struct {
-	Subreddits []string `json:"subreddits"`
-	Limit      int      `json:"limit,omitempty"`
-	Timeframe  string   `json:"timeframe,omitempty"`
+	Subreddits []string `json:"subreddits" jsonschema_description:"List of subreddit names (without r/ prefix) to fetch posts from for analysis"`
+	Limit      int      `json:"limit,omitempty" jsonschema_description:"Maximum number of posts to fetch per subreddit (default: 25, used to control API usage)"`
+	Timeframe  string   `json:"timeframe,omitempty" jsonschema_description:"Time period for posts: 'week', 'day', or 'month' (default: 'week' for recent relevant content)"`
 }
 
 // TopSubredditPostsResult represents the result of fetching Reddit posts
 type TopSubredditPostsResult struct {
 	llm.BaseLLMToolResult
-	Posts []domain.RedditPost `json:"posts"`
-	Count int                 `json:"count"`
+	Posts []domain.RedditPost `json:"posts" jsonschema_description:"Array of Reddit posts fetched from the specified subreddits within the timeframe"`
+	Count int                 `json:"count" jsonschema_description:"Total number of posts successfully fetched from all subreddits combined"`
 }
 
 // NewTopSubredditPostsTool creates a new TopSubredditPostsTool
@@ -50,7 +50,7 @@ func (t *TopSubredditPostsTool) CreateLLMTool() llm.LLMTool {
 // fetchPosts performs the actual Reddit posts fetching
 func (t *TopSubredditPostsTool) fetchPosts(id string, params TopSubredditPostsParams) (TopSubredditPostsResult, error) {
 	subreddits := params.Subreddits
-	
+
 	limit := 25
 	if params.Limit > 0 {
 		limit = params.Limit
@@ -120,7 +120,6 @@ func (t *TopSubredditPostsTool) fetchSubredditPosts(subreddit string, limit int,
 			URL:         post.URL,
 			Permalink:   fmt.Sprintf("https://reddit.com%s", post.Permalink),
 			IsSelfPost:  post.IsSelfPost,
-			Flair:       nil, // Flair field is optional, set to nil
 		}
 		result = append(result, redditPost)
 	}

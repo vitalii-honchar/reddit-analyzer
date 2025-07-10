@@ -20,14 +20,14 @@ type EvaluatePostTool struct {
 
 // EvaluatePostParams represents the parameters for post evaluation
 type EvaluatePostParams struct {
-	Post             domain.RedditPost `json:"post"`
-	ProjectDirection string            `json:"project_direction"`
+	Post             domain.RedditPost `json:"post" jsonschema_description:"Reddit post to analyze for indie hacker opportunity potential"`
+	ProjectDirection string            `json:"project_direction" jsonschema_description:"User's project direction for context when evaluating if this post represents a relevant opportunity"`
 }
 
 // EvaluatePostResult represents the result of post evaluation
 type EvaluatePostResult struct {
 	llm.BaseLLMToolResult
-	Analysis domain.OpportunityAnalysis `json:"analysis"`
+	Analysis domain.OpportunityAnalysis `json:"analysis" jsonschema_description:"Detailed analysis of the Reddit post's potential as an indie hacker opportunity with scoring and reasoning"`
 }
 
 // NewEvaluatePostTool creates a new EvaluatePostTool
