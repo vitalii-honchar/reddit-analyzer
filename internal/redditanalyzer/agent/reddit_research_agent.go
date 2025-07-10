@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -135,6 +136,15 @@ func (r *RedditResearchAgent) AnalyzeProject(ctx context.Context, projectDirecti
 		return nil, fmt.Errorf("failed to execute ReAct agent workflow: %w", err)
 	}
 
-	r.logger.WithField("agent_result", agentResult.Data).Info("✅ ReAct agent analysis completed")
+	// Pretty print the final analysis result as JSON for better readability
+	if agentResult.Data != nil {
+		if jsonData, err := json.MarshalIndent(agentResult.Data, "", "  "); err == nil {
+			r.logger.Infof("✅ ReAct agent analysis completed:\n%s", string(jsonData))
+		} else {
+			r.logger.WithField("agent_result", agentResult.Data).Info("✅ ReAct agent analysis completed")
+		}
+	} else {
+		r.logger.Info("✅ ReAct agent analysis completed (no result data)")
+	}
 	return agentResult.Data, nil
 }
