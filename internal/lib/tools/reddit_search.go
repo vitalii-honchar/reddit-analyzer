@@ -40,8 +40,8 @@ type (
 	SubredditPostSearchParams struct {
 		Subreddit       string                     `json:"subreddit" jsonschema_description:"Subreddit name (without r/ prefix) to search in"`
 		Filter          FilterCriteria             `json:"filter" jsonschema_description:"Criteria to filter posts for relevance and quality"`
-		Type            SubredditPostType          `json:"type,omitempty" json_schema:"enum=top,enum=hot,enum=new,enum=controversial" jsonschema_description:"Type of posts to fetch"`
-		Timeframe       SubredditPostTypeTimeframe `json:"timeframe,omitempty" json_schema:"enum=hour,enum=day,enum=week,enum=month,enum=year,enum=all" jsonschema_description:"Timeframe for posts to fetch"`
+		Type            SubredditPostType          `json:"type" json_schema:"enum=top,enum=hot,enum=new,enum=controversial" jsonschema_description:"Type of posts to fetch (required)"`
+		Timeframe       SubredditPostTypeTimeframe `json:"timeframe" json_schema:"enum=hour,enum=day,enum=week,enum=month,enum=year,enum=all" jsonschema_description:"Timeframe for posts to fetch - required for top and controversial post types"`
 		Limit           int                        `json:"limit,omitempty" jsonschema_description:"Maximum number of posts to fetch (default: 25, used to control API usage)"`
 		PaginationToken string                     `json:"pagination_token,omitempty" jsonschema_description:"Token for paginating results if more posts are available"`
 		Timeout         time.Duration              `json:"timeout,omitempty" jsonschema_description:"Timeout for the search operation, default is 60 seconds"`
@@ -247,14 +247,14 @@ func (r *redditPostSearchTool) validateParams(params *SubredditPostSearchParams)
 		params.Timeout = defaultSubredditPostSearchTimeout
 	}
 
-	// Set default post type if not specified
+	// Validate post type is specified
 	if params.Type == "" {
-		params.Type = HotSubredditPostType
+		return fmt.Errorf("%w: post type is required", llm.ErrInvalidArguments)
 	}
 
-	// Set default timeframe for top and controversial posts
+	// Validate timeframe is specified for top and controversial posts
 	if (params.Type == TopSubredditPostType || params.Type == ControversialSubredditPostType) && params.Timeframe == "" {
-		params.Timeframe = WeekSubredditPostTypeTimeframe
+		return fmt.Errorf("%w: timeframe is required for top and controversial post types", llm.ErrInvalidArguments)
 	}
 
 	// Set default filter criteria if not provided

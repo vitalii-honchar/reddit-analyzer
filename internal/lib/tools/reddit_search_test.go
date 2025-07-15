@@ -117,6 +117,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 
 		params := SubredditPostSearchParams{
 			Subreddit: "golang",
+			Type:      HotSubredditPostType,
 		}
 
 		err := tool.validateParams(&params)
@@ -131,12 +132,13 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		assert.Equal(t, 7*24*time.Hour, params.Filter.MaxAge)
 	})
 
-	t.Run("top posts get default timeframe", func(t *testing.T) {
+	t.Run("top posts require timeframe", func(t *testing.T) {
 		t.Parallel()
 
 		params := SubredditPostSearchParams{
 			Subreddit: "golang",
 			Type:      TopSubredditPostType,
+			Timeframe: WeekSubredditPostTypeTimeframe,
 		}
 
 		err := tool.validateParams(&params)
@@ -144,12 +146,13 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		assert.Equal(t, WeekSubredditPostTypeTimeframe, params.Timeframe)
 	})
 
-	t.Run("controversial posts get default timeframe", func(t *testing.T) {
+	t.Run("controversial posts require timeframe", func(t *testing.T) {
 		t.Parallel()
 
 		params := SubredditPostSearchParams{
 			Subreddit: "golang",
 			Type:      ControversialSubredditPostType,
+			Timeframe: WeekSubredditPostTypeTimeframe,
 		}
 
 		err := tool.validateParams(&params)
@@ -162,6 +165,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 
 		params := SubredditPostSearchParams{
 			Subreddit: "",
+			Type:      HotSubredditPostType,
 		}
 
 		err := tool.validateParams(&params)
@@ -169,11 +173,53 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		assert.Contains(t, err.Error(), "subreddit name cannot be empty")
 	})
 
+	t.Run("empty post type fails", func(t *testing.T) {
+		t.Parallel()
+
+		params := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      "",
+		}
+
+		err := tool.validateParams(&params)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "post type is required")
+	})
+
+	t.Run("top posts without timeframe fails", func(t *testing.T) {
+		t.Parallel()
+
+		params := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      TopSubredditPostType,
+			Timeframe: "",
+		}
+
+		err := tool.validateParams(&params)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "timeframe is required for top and controversial post types")
+	})
+
+	t.Run("controversial posts without timeframe fails", func(t *testing.T) {
+		t.Parallel()
+
+		params := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      ControversialSubredditPostType,
+			Timeframe: "",
+		}
+
+		err := tool.validateParams(&params)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "timeframe is required for top and controversial post types")
+	})
+
 	t.Run("subreddit with r/ prefix fails", func(t *testing.T) {
 		t.Parallel()
 
 		params := SubredditPostSearchParams{
 			Subreddit: "r/golang",
+			Type:      HotSubredditPostType,
 		}
 
 		err := tool.validateParams(&params)
