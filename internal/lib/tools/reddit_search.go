@@ -38,21 +38,21 @@ const (
 
 type (
 	SubredditPostSearchParams struct {
-		Subreddit       string                     `json:"subreddit" jsonschema_description:"Subreddit name (without r/ prefix) to search in"`
-		Filter          FilterCriteria             `json:"filter" jsonschema_description:"Criteria to filter posts for relevance and quality"`
+		Subreddit       string                     `json:"subreddit" jsonschema_description:"Subreddit name (without r/ prefix) to search in (required)"`
+		Filter          FilterCriteria             `json:"filter" jsonschema_description:"Criteria to filter posts for relevance and quality (required)"`
 		Type            SubredditPostType          `json:"type" json_schema:"enum=top,enum=hot,enum=new,enum=controversial" jsonschema_description:"Type of posts to fetch (required)"`
-		Timeframe       SubredditPostTypeTimeframe `json:"timeframe" json_schema:"enum=hour,enum=day,enum=week,enum=month,enum=year,enum=all" jsonschema_description:"Timeframe for posts to fetch - required for top and controversial post types"`
+		Timeframe       SubredditPostTypeTimeframe `json:"timeframe,omitempty" json_schema:"enum=hour,enum=day,enum=week,enum=month,enum=year,enum=all" jsonschema_description:"Timeframe for posts to fetch - required for top and controversial post types"`
 		Limit           int                        `json:"limit,omitempty" jsonschema_description:"Maximum number of posts to fetch (default: 25, used to control API usage)"`
 		PaginationToken string                     `json:"pagination_token,omitempty" jsonschema_description:"Token for paginating results if more posts are available"`
 		Timeout         time.Duration              `json:"timeout,omitempty" jsonschema_description:"Timeout for the search operation, default is 60 seconds"`
 	}
 
 	FilterCriteria struct {
-		MinScore        int           `json:"min_score" jsonschema_description:"Minimum upvote score required for posts to be considered"`
-		MinComments     int           `json:"min_comments" jsonschema_description:"Minimum number of comments required to indicate community discussion"`
-		MaxAge          time.Duration `json:"max_age" jsonschema_description:"Maximum age of posts to include in analysis (e.g. 7 days)"`
-		ExcludeStickied bool          `json:"exclude_stickied" jsonschema_description:"Whether to exclude moderator-pinned posts from analysis"`
-		RequireSelfPost bool          `json:"require_self_post" jsonschema_description:"Whether to only include text posts (not links) which often contain more detailed problems"`
+		MinScore        int           `json:"min_score" jsonschema_description:"Minimum upvote score required for posts to be considered (required)"`
+		MinComments     int           `json:"min_comments" jsonschema_description:"Minimum number of comments required to indicate community discussion (required)"`
+		MaxAge          time.Duration `json:"max_age" jsonschema_description:"Maximum age of posts to include in analysis (e.g. 7 days) (required)"`
+		ExcludeStickied bool          `json:"exclude_stickied,omitempty" jsonschema_description:"Whether to exclude moderator-pinned posts from analysis (default: false)"`
+		RequireSelfPost bool          `json:"require_self_post,omitempty" jsonschema_description:"Whether to only include text posts (not links) which often contain more detailed problems (default: true)"`
 	}
 
 	SubredditPostSearchResult struct {
@@ -161,32 +161,7 @@ func (r *redditPostSearchTool) searchPosts(params SubredditPostSearchParams) ([]
 	// Convert Reddit posts to domain posts
 	var result []domain.RedditPost
 	for _, post := range posts {
-		redditPost := domain.RedditPost{
-			ID:                    post.ID,
-			FullID:                post.FullID,
-			Created:               post.Created.Time,
-			Edited:                post.Edited.Time,
-			Permalink:             fmt.Sprintf("https://reddit.com%s", post.Permalink),
-			URL:                   post.URL,
-			Title:                 post.Title,
-			Body:                  post.Body,
-			Score:                 post.Score,
-			UpvoteRatio:           post.UpvoteRatio,
-			NumberOfComments:      post.NumberOfComments,
-			SubredditName:         post.SubredditName,
-			SubredditNamePrefixed: post.SubredditNamePrefixed,
-			SubredditID:           post.SubredditID,
-			SubredditSubscribers:  post.SubredditSubscribers,
-			Author:                post.Author,
-			AuthorID:              post.AuthorID,
-			Spoiler:               post.Spoiler,
-			Locked:                post.Locked,
-			NSFW:                  post.NSFW,
-			IsSelfPost:            post.IsSelfPost,
-			Saved:                 post.Saved,
-			Stickied:              post.Stickied,
-		}
-		result = append(result, redditPost)
+		result = append(result, r.convertRedditPost(post))
 	}
 
 	return result, nil
@@ -274,6 +249,17 @@ func (r *redditPostSearchTool) validateParams(params *SubredditPostSearchParams)
 		}
 	}
 
+	// Validate required filter criteria
+	if params.Filter.MinScore < 0 {
+		return fmt.Errorf("%w: min_score must be >= 0", llm.ErrInvalidArguments)
+	}
+	if params.Filter.MinComments < 0 {
+		return fmt.Errorf("%w: min_comments must be >= 0", llm.ErrInvalidArguments)
+	}
+	if params.Filter.MaxAge <= 0 {
+		return fmt.Errorf("%w: max_age must be > 0", llm.ErrInvalidArguments)
+	}
+
 	// Set default values for optional parameters
 	if params.Limit <= 0 {
 		params.Limit = defaultSubredditPostSearchLimit
@@ -283,16 +269,37 @@ func (r *redditPostSearchTool) validateParams(params *SubredditPostSearchParams)
 		params.Timeout = defaultSubredditPostSearchTimeout
 	}
 
-	// Set default filter criteria if not provided
-	if params.Filter.MinScore == 0 {
-		params.Filter.MinScore = 1
-	}
-	if params.Filter.MinComments == 0 {
-		params.Filter.MinComments = 1
-	}
-	if params.Filter.MaxAge == 0 {
-		params.Filter.MaxAge = 7 * 24 * time.Hour // 7 days default
-	}
+	// Note: ExcludeStickied defaults to false (Go zero value)
+	// Note: RequireSelfPost defaults to false (Go zero value), but documentation suggests true as preferred default
 
 	return nil
+}
+
+// convertRedditPost converts a Reddit API post to our domain RedditPost
+func (r *redditPostSearchTool) convertRedditPost(post *reddit.Post) domain.RedditPost {
+	return domain.RedditPost{
+		ID:                    post.ID,
+		FullID:                post.FullID,
+		Created:               post.Created.Time,
+		Edited:                post.Edited.Time,
+		Permalink:             fmt.Sprintf("https://reddit.com%s", post.Permalink),
+		URL:                   post.URL,
+		Title:                 post.Title,
+		Body:                  post.Body,
+		Score:                 post.Score,
+		UpvoteRatio:           post.UpvoteRatio,
+		NumberOfComments:      post.NumberOfComments,
+		SubredditName:         post.SubredditName,
+		SubredditNamePrefixed: post.SubredditNamePrefixed,
+		SubredditID:           post.SubredditID,
+		SubredditSubscribers:  post.SubredditSubscribers,
+		Author:                post.Author,
+		AuthorID:              post.AuthorID,
+		Spoiler:               post.Spoiler,
+		Locked:                post.Locked,
+		NSFW:                  post.NSFW,
+		IsSelfPost:            post.IsSelfPost,
+		Saved:                 post.Saved,
+		Stickied:              post.Stickied,
+	}
 }

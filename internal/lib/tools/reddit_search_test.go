@@ -10,6 +10,7 @@ import (
 	"github.com/vartanbeno/go-reddit/v2/reddit"
 )
 
+
 func TestRedditPostSearchTool_Integration(t *testing.T) {
 	t.Parallel()
 
@@ -118,17 +119,23 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		params := SubredditPostSearchParams{
 			Subreddit: "golang",
 			Type:      HotSubredditPostType,
+			Filter: FilterCriteria{
+				MinScore:    5,
+				MinComments: 3,
+				MaxAge:      7 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
 		require.NoError(t, err)
 
-		// Check defaults were set
+		// Check defaults were set for optional parameters
 		assert.Equal(t, defaultSubredditPostSearchLimit, params.Limit)
 		assert.Equal(t, defaultSubredditPostSearchTimeout, params.Timeout)
 		assert.Equal(t, HotSubredditPostType, params.Type)
-		assert.Equal(t, 1, params.Filter.MinScore)
-		assert.Equal(t, 1, params.Filter.MinComments)
+		// Check required filter criteria were preserved
+		assert.Equal(t, 5, params.Filter.MinScore)
+		assert.Equal(t, 3, params.Filter.MinComments)
 		assert.Equal(t, 7*24*time.Hour, params.Filter.MaxAge)
 	})
 
@@ -139,6 +146,11 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Subreddit: "golang",
 			Type:      TopSubredditPostType,
 			Timeframe: WeekSubredditPostTypeTimeframe,
+			Filter: FilterCriteria{
+				MinScore:    10,
+				MinComments: 5,
+				MaxAge:      7 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
@@ -153,6 +165,11 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Subreddit: "golang",
 			Type:      ControversialSubredditPostType,
 			Timeframe: WeekSubredditPostTypeTimeframe,
+			Filter: FilterCriteria{
+				MinScore:    15,
+				MinComments: 8,
+				MaxAge:      3 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
@@ -166,6 +183,11 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		params := SubredditPostSearchParams{
 			Subreddit: "",
 			Type:      HotSubredditPostType,
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: 1,
+				MaxAge:      7 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
@@ -179,6 +201,11 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		params := SubredditPostSearchParams{
 			Subreddit: "golang",
 			Type:      "",
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: 1,
+				MaxAge:      7 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
@@ -193,6 +220,11 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Subreddit: "golang",
 			Type:      TopSubredditPostType,
 			Timeframe: "",
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: 1,
+				MaxAge:      7 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
@@ -207,6 +239,11 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Subreddit: "golang",
 			Type:      ControversialSubredditPostType,
 			Timeframe: "",
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: 1,
+				MaxAge:      7 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
@@ -220,6 +257,11 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		params := SubredditPostSearchParams{
 			Subreddit: "golang",
 			Type:      SubredditPostType("invalid"),
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: 1,
+				MaxAge:      7 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
@@ -234,11 +276,88 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Subreddit: "golang",
 			Type:      TopSubredditPostType,
 			Timeframe: SubredditPostTypeTimeframe("invalid"),
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: 1,
+				MaxAge:      7 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid timeframe invalid")
+	})
+
+	t.Run("negative min_score fails", func(t *testing.T) {
+		t.Parallel()
+
+		params := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      HotSubredditPostType,
+			Filter: FilterCriteria{
+				MinScore:    -1,
+				MinComments: 1,
+				MaxAge:      7 * 24 * time.Hour,
+			},
+		}
+
+		err := tool.validateParams(&params)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "min_score must be >= 0")
+	})
+
+	t.Run("negative min_comments fails", func(t *testing.T) {
+		t.Parallel()
+
+		params := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      HotSubredditPostType,
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: -1,
+				MaxAge:      7 * 24 * time.Hour,
+			},
+		}
+
+		err := tool.validateParams(&params)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "min_comments must be >= 0")
+	})
+
+	t.Run("zero max_age fails", func(t *testing.T) {
+		t.Parallel()
+
+		params := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      HotSubredditPostType,
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: 1,
+				MaxAge:      0,
+			},
+		}
+
+		err := tool.validateParams(&params)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_age must be > 0")
+	})
+
+	t.Run("negative max_age fails", func(t *testing.T) {
+		t.Parallel()
+
+		params := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      HotSubredditPostType,
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: 1,
+				MaxAge:      -24 * time.Hour,
+			},
+		}
+
+		err := tool.validateParams(&params)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_age must be > 0")
 	})
 
 	t.Run("subreddit with r/ prefix fails", func(t *testing.T) {
@@ -247,6 +366,11 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		params := SubredditPostSearchParams{
 			Subreddit: "r/golang",
 			Type:      HotSubredditPostType,
+			Filter: FilterCriteria{
+				MinScore:    1,
+				MinComments: 1,
+				MaxAge:      7 * 24 * time.Hour,
+			},
 		}
 
 		err := tool.validateParams(&params)
