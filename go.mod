@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/vartanbeno/go-reddit/v2 v2.0.1
-	github.com/vitalii-honchar/go-agent v0.5.0
+	github.com/vitalii-honchar/go-agent v0.6.1
 )
 
 require (
