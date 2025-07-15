@@ -137,6 +137,8 @@ func (r *redditPostSearchTool) searchPosts(params SubredditPostSearchParams) ([]
 	var posts []*reddit.Post
 	var err error
 
+
+	r.client.Post.Get()
 	switch params.Type {
 	case TopSubredditPostType:
 		posts, _, err = r.client.Subreddit.TopPosts(ctx, params.Subreddit, opts)

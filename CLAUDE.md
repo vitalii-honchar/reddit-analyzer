@@ -297,3 +297,69 @@ Analysis complete: 3 opportunities found from 23 posts analyzed
 - Project follows standard Go module structure
 - No tests, documentation, or build automation currently exist
 - Git repository on main branch with pending changes to go.mod and new cmd/ directory
+
+## Future Backlog (Not Implemented)
+
+### Reddit Comments Integration
+**Priority**: Medium | **Status**: Not Started
+
+**Context**: Currently the system only analyzes Reddit posts. To get deeper insights into market problems and user pain points, we should also analyze comments within posts. Comments often contain more detailed problem descriptions, user frustrations, and solution discussions.
+
+**Tasks to Implement:**
+
+1. **Domain Model Creation**
+   - [ ] Create `RedditComment` struct in `internal/lib/domain/reddit.go` based on `vendor/.../reddit/things.go:Comment`
+   - [ ] Include fields: ID, FullID, Created, Edited, ParentID, Permalink, Body, Author, Score, Controversiality
+   - [ ] Add post relationship fields: PostID, PostTitle, PostPermalink
+   - [ ] Include boolean flags: IsSubmitter, ScoreHidden, Saved, Stickied, Locked, NSFW
+   - [ ] Add subreddit context: SubredditName, SubredditNamePrefixed, SubredditID
+   - [ ] Support nested comment structure with Replies field
+
+2. **Comment Fetching Tool**
+   - [ ] Create `RedditCommentSearchTool` in `internal/lib/tools/`
+   - [ ] Implement post comment fetching using `r.client.Post.Comments()`
+   - [ ] Add filtering for comment depth, score thresholds, and age
+   - [ ] Support pagination for large comment threads
+   - [ ] Convert reddit.Comment to domain.RedditComment with proper mapping
+
+3. **Enhanced Analysis Capabilities**
+   - [ ] Extend filtering to analyze both posts AND their top comments
+   - [ ] Add comment-specific filtering (min score, max depth, exclude bot comments)
+   - [ ] Implement comment sentiment analysis for problem validation
+   - [ ] Create aggregated metrics: total engagement (post + comments), discussion quality
+
+4. **Comment-Aware Problem Extraction**
+   - [ ] Update problem extraction to analyze comment threads for detailed pain points
+   - [ ] Identify solution discussions and existing tool mentions in comments
+   - [ ] Extract user frustrations and feature requests from comment chains
+   - [ ] Detect validation patterns (multiple users confirming same problem)
+
+5. **Data Structure Updates**
+   - [ ] Add `Comments []RedditComment` field to existing analysis results
+   - [ ] Update opportunity scoring to include comment insights
+   - [ ] Create comment-specific analytics (engagement depth, discussion quality)
+   - [ ] Support comment-driven opportunity discovery
+
+6. **Testing & Integration**
+   - [ ] Add integration tests for comment fetching from real Reddit posts
+   - [ ] Test comment tree traversal and nested reply handling
+   - [ ] Validate comment filtering and scoring algorithms
+   - [ ] Ensure pagination works correctly for large comment threads
+
+**Expected Benefits:**
+- **Deeper Problem Understanding**: Comments reveal detailed pain points not visible in post titles
+- **Solution Validation**: Existing tool discussions help identify market gaps
+- **User Sentiment**: Comment sentiment provides better problem validation
+- **Community Engagement**: High-quality discussions indicate strong market interest
+
+**Technical Considerations:**
+- Comments can have deep nesting (replies to replies), requiring careful tree traversal
+- Reddit API rate limiting becomes more important with comment fetching
+- Comment volume can be much higher than posts, requiring smart filtering
+- Some comments may be deleted/removed, needing proper error handling
+
+**Integration Points:**
+- Extends existing `RedditPostSearchTool` workflow
+- Enhances problem validation with comment-based evidence
+- Improves opportunity scoring with engagement depth metrics
+- Supports the existing ReAct agent architecture
