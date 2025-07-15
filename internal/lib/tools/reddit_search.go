@@ -116,10 +116,6 @@ func (r *redditPostSearchTool) searchPosts(params SubredditPostSearchParams) ([]
 	ctx, cancel := context.WithTimeout(context.Background(), params.Timeout)
 	defer cancel()
 
-	// Clean subreddit name - remove "r/" prefix if present
-	cleanSubreddit := strings.TrimPrefix(params.Subreddit, "r/")
-	cleanSubreddit = strings.TrimPrefix(cleanSubreddit, "/")
-
 	// Set up list options
 	opts := &reddit.ListPostOptions{
 		ListOptions: reddit.ListOptions{
@@ -143,19 +139,19 @@ func (r *redditPostSearchTool) searchPosts(params SubredditPostSearchParams) ([]
 
 	switch params.Type {
 	case TopSubredditPostType:
-		posts, _, err = r.client.Subreddit.TopPosts(ctx, cleanSubreddit, opts)
+		posts, _, err = r.client.Subreddit.TopPosts(ctx, params.Subreddit, opts)
 	case HotSubredditPostType:
-		posts, _, err = r.client.Subreddit.HotPosts(ctx, cleanSubreddit, &opts.ListOptions)
+		posts, _, err = r.client.Subreddit.HotPosts(ctx, params.Subreddit, &opts.ListOptions)
 	case NewSubredditPostType:
-		posts, _, err = r.client.Subreddit.NewPosts(ctx, cleanSubreddit, &opts.ListOptions)
+		posts, _, err = r.client.Subreddit.NewPosts(ctx, params.Subreddit, &opts.ListOptions)
 	case ControversialSubredditPostType:
-		posts, _, err = r.client.Subreddit.ControversialPosts(ctx, cleanSubreddit, opts)
+		posts, _, err = r.client.Subreddit.ControversialPosts(ctx, params.Subreddit, opts)
 	default:
 		return nil, fmt.Errorf("%w: invalid post type %s", llm.ErrInvalidArguments, params.Type)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch posts from r/%s: %w", cleanSubreddit, err)
+		return nil, fmt.Errorf("failed to fetch posts from r/%s: %w", params.Subreddit, err)
 	}
 
 	// Convert Reddit posts to domain posts
@@ -268,10 +264,6 @@ func (r *redditPostSearchTool) validateParams(params *SubredditPostSearchParams)
 	if params.Timeout <= 0 {
 		params.Timeout = defaultSubredditPostSearchTimeout
 	}
-
-	// Note: ExcludeStickied defaults to false (Go zero value)
-	// Note: RequireSelfPost defaults to false (Go zero value), but documentation suggests true as preferred default
-
 	return nil
 }
 

@@ -106,6 +106,58 @@ func TestRedditPostSearchTool_Integration(t *testing.T) {
 			assert.True(t, post.IsSelfPost, "Should only return self posts")
 		}
 	})
+
+	t.Run("pagination with token", func(t *testing.T) {
+		t.Parallel()
+
+		// First request to get initial posts and pagination token
+		firstParams := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      HotSubredditPostType,
+			Limit:     3, // Small limit to ensure pagination
+			Filter: FilterCriteria{
+				MinScore:        1,
+				MinComments:     1,
+				MaxAge:          7 * 24 * time.Hour,
+				ExcludeStickied: false,
+				RequireSelfPost: false,
+			},
+		}
+
+		firstResult, err := tool.search("test-pagination-1", firstParams)
+		require.NoError(t, err)
+		assert.Equal(t, "test-pagination-1", firstResult.ID)
+		assert.LessOrEqual(t, len(firstResult.Posts), 3)
+		assert.NotEmpty(t, firstResult.PaginationToken, "Should return pagination token")
+
+		// Second request using pagination token
+		secondParams := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      HotSubredditPostType,
+			Limit:     3,
+			PaginationToken: firstResult.PaginationToken,
+			Filter: FilterCriteria{
+				MinScore:        1,
+				MinComments:     1,
+				MaxAge:          7 * 24 * time.Hour,
+				ExcludeStickied: false,
+				RequireSelfPost: false,
+			},
+		}
+
+		secondResult, err := tool.search("test-pagination-2", secondParams)
+		require.NoError(t, err)
+		assert.Equal(t, "test-pagination-2", secondResult.ID)
+		assert.LessOrEqual(t, len(secondResult.Posts), 3)
+
+		// Verify we got different posts (pagination worked)
+		if len(firstResult.Posts) > 0 && len(secondResult.Posts) > 0 {
+			// Check that first post IDs are different
+			firstPostID := firstResult.Posts[0].ID
+			secondPostID := secondResult.Posts[0].ID
+			assert.NotEqual(t, firstPostID, secondPostID, "Pagination should return different posts")
+		}
+	})
 }
 
 func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
