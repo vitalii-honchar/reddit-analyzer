@@ -26,23 +26,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Authentication**: OpenAI API key stored in .env file and accessed via OPENAI_API_KEY environment variable
 **Code Principles**: Clean code practices for Go development
 
-## Planned Architecture
+## Enhanced Multi-Agent Architecture
 
-**Intelligent Single-Agent Workflow**: 
-- **Master Agent**: "Reddit Indie Hacker Research Agent" orchestrates the entire analysis workflow
-- **Tools**: Specialized tools for each analysis phase
-- **Inspiration**: Architecture based on Anthropic's multi-agent research system (https://www.anthropic.com/engineering/built-multi-agent-research-system)
+**Hierarchical Multi-Agent System with Validation Loops**:
+- **Master Orchestrator Agent**: Coordinates entire workflow and compiles final results
+- **Reddit Discovery Agent**: Intelligent subreddit discovery and post collection
+- **Problem Validation Agent**: Validates customer problems and measures market demand  
+- **Opportunity Assessment Agent**: Evaluates opportunities against indie hacker constraints
+- **Inspiration**: Enhanced architecture based on Anthropic's multi-agent research system
 
-**Key Tools to Build**:
-1. **SubredditSelectorTool**: AI intelligently selects niche subreddits based on user's project direction
-2. **TopSubredditPostsTool**: Fetches recent posts from selected subreddits using Reddit API
-3. **FilterPosts**: Filters posts by engagement metrics and 1-week timeframe
-4. **EvaluatePost**: Uses LLM to rate posts 1-5 for hidden indie hacker opportunities
+**Multi-Agent Workflow**:
+1. **Reddit Discovery Agent** - Explores obvious + non-obvious subreddits iteratively
+2. **Problem Validation Agent** - Validates problems with 5+ mentions, competitor analysis
+3. **Opportunity Assessment Agent** - Scores opportunities with TAM-SAM-SOM analysis
+4. **Iterative Refinement Loop** - 2-3 rounds of discovery and validation
+5. **Master Orchestrator** - Compiles ranked opportunities with evidence
+
+**Advanced Tools to Build**:
+1. **SubredditSelectorTool**: AI selects 3 obvious + 7 non-obvious subreddits
+2. **TopSubredditPostsTool**: Fetches posts from multiple subreddits (last 7 days)
+3. **FilterPostsTool**: Filters by engagement metrics and relevance scoring
+4. **ProblemExtractorTool**: Extracts explicit and implicit problems from posts
+5. **ValidationSearchTool**: Searches Reddit for similar problems (5+ mentions)
+6. **CompetitorAnalysisTool**: Web search for existing solutions and gaps
+7. **OpportunityEvaluatorTool**: Scores opportunities against user constraints
+8. **TAM-SAM-SOM Tool**: Market size analysis for promising opportunities
+9. **NicheAnalysisTool**: Identifies underdeveloped niches with low competition
 
 **Intelligence Focus**:
-- Avoid obvious entrepreneurship subreddits (r/entrepreneur, r/startups)
-- Target niche communities where problems exist but solutions are underdeveloped
-- Focus on genuine pain points mentioned by domain professionals
+- Multi-round discovery: obvious → non-obvious → pattern-based subreddits
+- Quantified validation: 5+ problem mentions across different communities
+- Cross-domain insights: cybersecurity + MSP tools, infrastructure + remote work
+- Evidence-based ranking: every opportunity backed by real Reddit discussions
+- Competitive intelligence: identifies gaps in existing solutions
 
 ## Common Commands
 
