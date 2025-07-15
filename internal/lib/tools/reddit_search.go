@@ -229,7 +229,7 @@ func (r *redditPostSearchTool) filterPosts(posts []domain.RedditPost, criteria F
 }
 
 func (r *redditPostSearchTool) validateParams(params *SubredditPostSearchParams) error {
-	// Validate subreddit name
+	// Validate required subreddit name
 	if params.Subreddit == "" {
 		return fmt.Errorf("%w: subreddit name cannot be empty", llm.ErrInvalidArguments)
 	}
@@ -238,23 +238,49 @@ func (r *redditPostSearchTool) validateParams(params *SubredditPostSearchParams)
 		return fmt.Errorf("%w: subreddit %s should not have r/ prefix", llm.ErrInvalidArguments, params.Subreddit)
 	}
 
-	// Set default values
+	// Validate required post type
+	if params.Type == "" {
+		return fmt.Errorf("%w: post type is required", llm.ErrInvalidArguments)
+	}
+
+	// Validate post type enum values
+	validTypes := map[SubredditPostType]bool{
+		TopSubredditPostType:           true,
+		HotSubredditPostType:           true,
+		NewSubredditPostType:           true,
+		ControversialSubredditPostType: true,
+	}
+	if !validTypes[params.Type] {
+		return fmt.Errorf("%w: invalid post type %s, must be one of: top, hot, new, controversial", llm.ErrInvalidArguments, params.Type)
+	}
+
+	// Validate timeframe for top and controversial posts
+	if params.Type == TopSubredditPostType || params.Type == ControversialSubredditPostType {
+		if params.Timeframe == "" {
+			return fmt.Errorf("%w: timeframe is required for top and controversial post types", llm.ErrInvalidArguments)
+		}
+
+		// Validate timeframe enum values
+		validTimeframes := map[SubredditPostTypeTimeframe]bool{
+			HourSubredditPostTypeTimeframe:    true,
+			DaySubredditPostTypeTimeframe:     true,
+			WeekSubredditPostTypeTimeframe:    true,
+			MonthSubredditPostTypeTimeframe:   true,
+			YearSubredditPostTypeTimeframe:    true,
+			AllTimeSubredditPostTypeTimeframe: true,
+		}
+		if !validTimeframes[params.Timeframe] {
+			return fmt.Errorf("%w: invalid timeframe %s, must be one of: hour, day, week, month, year, all", llm.ErrInvalidArguments, params.Timeframe)
+		}
+	}
+
+	// Set default values for optional parameters
 	if params.Limit <= 0 {
 		params.Limit = defaultSubredditPostSearchLimit
 	}
 
 	if params.Timeout <= 0 {
 		params.Timeout = defaultSubredditPostSearchTimeout
-	}
-
-	// Validate post type is specified
-	if params.Type == "" {
-		return fmt.Errorf("%w: post type is required", llm.ErrInvalidArguments)
-	}
-
-	// Validate timeframe is specified for top and controversial posts
-	if (params.Type == TopSubredditPostType || params.Type == ControversialSubredditPostType) && params.Timeframe == "" {
-		return fmt.Errorf("%w: timeframe is required for top and controversial post types", llm.ErrInvalidArguments)
 	}
 
 	// Set default filter criteria if not provided

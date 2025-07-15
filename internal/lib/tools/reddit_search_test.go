@@ -214,6 +214,33 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		assert.Contains(t, err.Error(), "timeframe is required for top and controversial post types")
 	})
 
+	t.Run("invalid post type fails", func(t *testing.T) {
+		t.Parallel()
+
+		params := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      SubredditPostType("invalid"),
+		}
+
+		err := tool.validateParams(&params)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid post type invalid")
+	})
+
+	t.Run("invalid timeframe fails", func(t *testing.T) {
+		t.Parallel()
+
+		params := SubredditPostSearchParams{
+			Subreddit: "golang",
+			Type:      TopSubredditPostType,
+			Timeframe: SubredditPostTypeTimeframe("invalid"),
+		}
+
+		err := tool.validateParams(&params)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid timeframe invalid")
+	})
+
 	t.Run("subreddit with r/ prefix fails", func(t *testing.T) {
 		t.Parallel()
 
