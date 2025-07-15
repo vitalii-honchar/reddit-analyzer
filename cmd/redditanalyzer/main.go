@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"reddit-analyzer/internal/redditanalyzer/agent"
-	"reddit-analyzer/internal/redditanalyzer/domain"
+	"reddit-analyzer/internal/searchagent"
+	"reddit-analyzer/internal/searchagent/domain"
 )
 
 func main() {

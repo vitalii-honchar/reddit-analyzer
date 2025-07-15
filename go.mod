@@ -3,10 +3,9 @@ module reddit-analyzer
 go 1.24.4
 
 require (
-	github.com/openai/openai-go v1.8.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/vartanbeno/go-reddit/v2 v2.0.1
-	github.com/vitalii-honchar/go-agent v0.3.0
+	github.com/vitalii-honchar/go-agent v0.5.0
 )
 
 require (
@@ -15,18 +14,9 @@ require (
 )
 
 require (
-	github.com/bahlo/generic-list-go v0.2.0 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/golang/protobuf v1.2.0 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
-	github.com/invopop/jsonschema v0.13.0 // indirect
-	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/stretchr/testify v1.10.0
-	github.com/tidwall/gjson v1.14.4 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/tidwall/sjson v1.2.5 // indirect
-	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.29.0 // indirect
