@@ -51,12 +51,12 @@ func createTools[T any](tool map[string]int) ([]agent.AgentOption[T], error) {
 
 func loggingMiddleware(log *logrus.Logger) agent.AgentMiddleware {
 	return func(ctx context.Context, state *agent.AgentState, msg llm.LLMMessage) (llm.LLMMessage, error) {
-
+	
 		log.WithFields(logrus.Fields{
 			"message_type":   msg.Type,
 			"agent_end":      msg.End,
-			"tool_calls":     msg.ToolCalls,
-			"content":        msg.Content[:64],
+			"tool_calls":     len(msg.ToolCalls),
+			"content":        msg.Content,
 			"state_messages": len(state.Messages),
 		}).Info("Received message from LLM")
 

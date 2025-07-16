@@ -11,21 +11,21 @@ type RedditPost struct {
 	URL                   string    `json:"url"`
 	Title                 string    `json:"title"`
 	Body                  string    `json:"selftext"`
-	Score                 int       `json:"score"`
-	UpvoteRatio           float32   `json:"upvote_ratio"`
-	NumberOfComments      int       `json:"num_comments"`
-	SubredditName         string    `json:"subreddit"`
-	SubredditNamePrefixed string    `json:"subreddit_name_prefixed"`
+	Score                 int       `json:"score,omitempty"`
+	UpvoteRatio           float32   `json:"upvote_ratio,omitempty"`
+	NumberOfComments      int       `json:"num_comments,omitempty"`
+	SubredditName         string    `json:"subreddit,omitempty"`
+	SubredditNamePrefixed string    `json:"subreddit_name_prefixed,omitempty"`
 	SubredditID           string    `json:"subreddit_id"`
 	SubredditSubscribers  int       `json:"subreddit_subscribers"`
-	Author                string    `json:"author"`
-	AuthorID              string    `json:"author_fullname"`
-	Spoiler               bool      `json:"spoiler"`
-	Locked                bool      `json:"locked"`
-	NSFW                  bool      `json:"over_18"`
-	IsSelfPost            bool      `json:"is_self"`
-	Saved                 bool      `json:"saved"`
-	Stickied              bool      `json:"stickied"`
+	Author                string    `json:"author,omitempty"`
+	AuthorID              string    `json:"author_fullname,omitempty"`
+	Spoiler               bool      `json:"spoiler,omitempty"`
+	Locked                bool      `json:"locked,omitempty"`
+	NSFW                  bool      `json:"over_18,omitempty"`
+	IsSelfPost            bool      `json:"is_self,omitempty"`
+	Saved                 bool      `json:"saved,omitempty"`
+	Stickied              bool      `json:"stickied,omitempty"`
 }
 
 type FilterCriteria struct {

@@ -44,22 +44,23 @@ type (
 		Filter          FilterCriteria             `json:"filter" jsonschema_description:"Criteria to filter posts for relevance and quality (required)"`
 		Type            SubredditPostType          `json:"type" json_schema:"enum=top,enum=hot,enum=new,enum=controversial" jsonschema_description:"Type of posts to fetch (required)"`
 		Timeframe       SubredditPostTypeTimeframe `json:"timeframe,omitempty" json_schema:"enum=hour,enum=day,enum=week,enum=month,enum=year,enum=all" jsonschema_description:"Timeframe for posts to fetch - required for top and controversial post types"`
-		Limit           int                        `json:"limit,omitempty" jsonschema_description:"Maximum number of posts to fetch (default: 25, used to control API usage)"`
+		Limit           int                        `json:"limit,omitempty" jsonschema_description:"Maximum number of posts to fetch (default: 25, used to control API usage)" `
 		PaginationToken string                     `json:"pagination_token,omitempty" jsonschema_description:"Token for paginating results if more posts are available"`
 		Timeout         time.Duration              `json:"timeout,omitempty" jsonschema_description:"Timeout for the search operation, default is 60 seconds"`
 	}
 
 	FilterCriteria struct {
-		MinScore        int           `json:"min_score" jsonschema_description:"Minimum upvote score required for posts to be considered (required)"`
-		MinComments     int           `json:"min_comments" jsonschema_description:"Minimum number of comments required to indicate community discussion (required)"`
-		MaxAge          time.Duration `json:"max_age" jsonschema_description:"Maximum age of posts to include in analysis (e.g. 7 days) (required)"`
-		ExcludeStickied bool          `json:"exclude_stickied,omitempty" jsonschema_description:"Whether to exclude moderator-pinned posts from analysis (default: false)"`
-		RequireSelfPost bool          `json:"require_self_post,omitempty" jsonschema_description:"Whether to only include text posts (not links) which often contain more detailed problems (default: true)"`
+		MinScore        int  `json:"min_score" jsonschema_description:"Minimum upvote score required for posts to be considered (required)"`
+		MinComments     int  `json:"min_comments" jsonschema_description:"Minimum number of comments required to indicate community discussion (required)"`
+		MaxAgeDays      int  `json:"max_age" jsonschema_description:"Maximum age of posts to include in analysis (e.g. 7 days) (required)"`
+		ExcludeStickied bool `json:"exclude_stickied,omitempty" jsonschema_description:"Whether to exclude moderator-pinned posts from analysis (default: false)"`
+		RequireSelfPost bool `json:"require_self_post,omitempty" jsonschema_description:"Whether to only include text posts (not links) which often contain more detailed problems (default: true)"`
 	}
 
 	SubredditPostSearchResult struct {
 		llm.BaseLLMToolResult
 		Posts           []domain.RedditPost `json:"posts" jsonschema_description:"Array of Reddit posts matching the search criteria"`
+		FilterReasons   []string            `json:"filter_reasons,omitempty" jsonschema_description:"Reasons why certain posts were filtered out based on criteria"`
 		CountAnalyzed   int                 `json:"count_analyzed" jsonschema_description:"Total number of posts analyzed from the search"`
 		PaginationToken string              `json:"pagination_token,omitempty" jsonschema_description:"Token for paginating results if more posts are available"`
 	}
@@ -93,7 +94,7 @@ func (r *redditPostSearchTool) search(callID string, params SubredditPostSearchP
 		return SubredditPostSearchResult{}, err
 	}
 
-	filteredPosts, err := r.filterPosts(posts, params.Filter)
+	filteredPosts, reasons, err := r.filterPosts(posts, params.Filter)
 	if err != nil {
 		return SubredditPostSearchResult{}, err
 	}
@@ -103,6 +104,7 @@ func (r *redditPostSearchTool) search(callID string, params SubredditPostSearchP
 			ID: callID,
 		},
 		Posts:         filteredPosts,
+		FilterReasons: reasons,
 		CountAnalyzed: len(posts),
 	}
 
@@ -165,40 +167,46 @@ func (r *redditPostSearchTool) searchPosts(params SubredditPostSearchParams) ([]
 	return result, nil
 }
 
-func (r *redditPostSearchTool) filterPosts(posts []domain.RedditPost, criteria FilterCriteria) ([]domain.RedditPost, error) {
+func (r *redditPostSearchTool) filterPosts(posts []domain.RedditPost, criteria FilterCriteria) ([]domain.RedditPost, []string, error) {
 	var filtered []domain.RedditPost
-	cutoffTime := time.Now().Add(-criteria.MaxAge)
+	filterReasons := map[string]bool{}
+	cutoffTime := time.Now().Add(-time.Duration(criteria.MaxAgeDays) * 24 * time.Hour)
 
 	for _, post := range posts {
 		// Apply minimum score filter
 		if post.Score < criteria.MinScore {
+			filterReasons[fmt.Sprintf("posts with score less than %d", criteria.MinScore)] = true
 			continue
 		}
 
 		// Apply minimum comments filter
 		if post.NumberOfComments < criteria.MinComments {
+			filterReasons[fmt.Sprintf("posts with less than %d comments", criteria.MinComments)] = true
 			continue
 		}
 
 		// Apply max age filter
-		if criteria.MaxAge > 0 && post.Created.Before(cutoffTime) {
+		if criteria.MaxAgeDays > 0 && post.Created.Before(cutoffTime) {
+			filterReasons[fmt.Sprintf("posts older than %d", criteria.MaxAgeDays)] = true
 			continue
 		}
 
 		// Apply stickied filter
 		if criteria.ExcludeStickied && post.Stickied {
+			filterReasons["stickied posts"] = true
 			continue
 		}
 
 		// Apply self post filter
 		if criteria.RequireSelfPost && !post.IsSelfPost {
+			filterReasons["non-self posts"] = true
 			continue
 		}
 
 		filtered = append(filtered, post)
 	}
 
-	return filtered, nil
+	return filtered, toSlice(filterReasons), nil
 }
 
 func (r *redditPostSearchTool) validateParams(params *SubredditPostSearchParams) error {
@@ -254,12 +262,12 @@ func (r *redditPostSearchTool) validateParams(params *SubredditPostSearchParams)
 	if params.Filter.MinComments < 0 {
 		return fmt.Errorf("%w: min_comments must be >= 0", llm.ErrInvalidArguments)
 	}
-	if params.Filter.MaxAge <= 0 {
+	if params.Filter.MaxAgeDays <= 0 {
 		return fmt.Errorf("%w: max_age must be > 0", llm.ErrInvalidArguments)
 	}
 
 	// Set default values for optional parameters
-	if params.Limit <= 0 {
+	if params.Limit <= defaultSubredditPostSearchLimit {
 		params.Limit = defaultSubredditPostSearchLimit
 	}
 
@@ -296,4 +304,12 @@ func (r *redditPostSearchTool) convertRedditPost(post *reddit.Post) domain.Reddi
 		Saved:                 post.Saved,
 		Stickied:              post.Stickied,
 	}
+}
+
+func toSlice(m map[string]bool) []string {
+	result := make([]string, 0, len(m))
+	for reason := range m {
+		result = append(result, reason)
+	}
+	return result
 }

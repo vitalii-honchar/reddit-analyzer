@@ -10,7 +10,6 @@ import (
 	"github.com/vartanbeno/go-reddit/v2/reddit"
 )
 
-
 func TestRedditPostSearchTool_Integration(t *testing.T) {
 	t.Parallel()
 
@@ -29,7 +28,7 @@ func TestRedditPostSearchTool_Integration(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:        1,
 				MinComments:     1,
-				MaxAge:          7 * 24 * time.Hour,
+				MaxAgeDays:      7 * 24 * time.Hour,
 				ExcludeStickied: false,
 				RequireSelfPost: false,
 			},
@@ -62,7 +61,7 @@ func TestRedditPostSearchTool_Integration(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:        5,
 				MinComments:     2,
-				MaxAge:          7 * 24 * time.Hour,
+				MaxAgeDays:      7 * 24 * time.Hour,
 				ExcludeStickied: true,
 				RequireSelfPost: false,
 			},
@@ -91,7 +90,7 @@ func TestRedditPostSearchTool_Integration(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:        1,
 				MinComments:     1,
-				MaxAge:          30 * 24 * time.Hour, // 30 days
+				MaxAgeDays:      30 * 24 * time.Hour, // 30 days
 				ExcludeStickied: true,
 				RequireSelfPost: true,
 			},
@@ -118,7 +117,7 @@ func TestRedditPostSearchTool_Integration(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:        1,
 				MinComments:     1,
-				MaxAge:          7 * 24 * time.Hour,
+				MaxAgeDays:      7 * 24 * time.Hour,
 				ExcludeStickied: false,
 				RequireSelfPost: false,
 			},
@@ -132,14 +131,14 @@ func TestRedditPostSearchTool_Integration(t *testing.T) {
 
 		// Second request using pagination token
 		secondParams := SubredditPostSearchParams{
-			Subreddit: "golang",
-			Type:      HotSubredditPostType,
-			Limit:     3,
+			Subreddit:       "golang",
+			Type:            HotSubredditPostType,
+			Limit:           3,
 			PaginationToken: firstResult.PaginationToken,
 			Filter: FilterCriteria{
 				MinScore:        1,
 				MinComments:     1,
-				MaxAge:          7 * 24 * time.Hour,
+				MaxAgeDays:      7 * 24 * time.Hour,
 				ExcludeStickied: false,
 				RequireSelfPost: false,
 			},
@@ -174,7 +173,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    5,
 				MinComments: 3,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -188,7 +187,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 		// Check required filter criteria were preserved
 		assert.Equal(t, 5, params.Filter.MinScore)
 		assert.Equal(t, 3, params.Filter.MinComments)
-		assert.Equal(t, 7*24*time.Hour, params.Filter.MaxAge)
+		assert.Equal(t, 7*24*time.Hour, params.Filter.MaxAgeDays)
 	})
 
 	t.Run("top posts require timeframe", func(t *testing.T) {
@@ -201,7 +200,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    10,
 				MinComments: 5,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -220,7 +219,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    15,
 				MinComments: 8,
-				MaxAge:      3 * 24 * time.Hour,
+				MaxAgeDays:  3 * 24 * time.Hour,
 			},
 		}
 
@@ -238,7 +237,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: 1,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -256,7 +255,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: 1,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -275,7 +274,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: 1,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -294,7 +293,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: 1,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -312,7 +311,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: 1,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -331,7 +330,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: 1,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -349,7 +348,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    -1,
 				MinComments: 1,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -367,7 +366,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: -1,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -385,7 +384,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: 1,
-				MaxAge:      0,
+				MaxAgeDays:  0,
 			},
 		}
 
@@ -403,7 +402,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: 1,
-				MaxAge:      -24 * time.Hour,
+				MaxAgeDays:  -24 * time.Hour,
 			},
 		}
 
@@ -421,7 +420,7 @@ func TestRedditPostSearchTool_ValidateParams(t *testing.T) {
 			Filter: FilterCriteria{
 				MinScore:    1,
 				MinComments: 1,
-				MaxAge:      7 * 24 * time.Hour,
+				MaxAgeDays:  7 * 24 * time.Hour,
 			},
 		}
 
@@ -492,7 +491,7 @@ func TestRedditPostSearchTool_FilterPosts(t *testing.T) {
 		criteria := FilterCriteria{
 			MinScore:    50,
 			MinComments: 20,
-			MaxAge:      7 * 24 * time.Hour,
+			MaxAgeDays:  7 * 24 * time.Hour,
 		}
 
 		filtered, err := tool.filterPosts(posts, criteria)
@@ -511,7 +510,7 @@ func TestRedditPostSearchTool_FilterPosts(t *testing.T) {
 		criteria := FilterCriteria{
 			MinScore:        10,
 			MinComments:     5,
-			MaxAge:          7 * 24 * time.Hour,
+			MaxAgeDays:      7 * 24 * time.Hour,
 			ExcludeStickied: true,
 		}
 
@@ -532,7 +531,7 @@ func TestRedditPostSearchTool_FilterPosts(t *testing.T) {
 		criteria := FilterCriteria{
 			MinScore:        10,
 			MinComments:     5,
-			MaxAge:          7 * 24 * time.Hour,
+			MaxAgeDays:      7 * 24 * time.Hour,
 			RequireSelfPost: true,
 		}
 
@@ -554,7 +553,7 @@ func TestRedditPostSearchTool_FilterPosts(t *testing.T) {
 		criteria := FilterCriteria{
 			MinScore:    10,
 			MinComments: 5,
-			MaxAge:      2 * 24 * time.Hour, // 2 days
+			MaxAgeDays:  2 * 24 * time.Hour, // 2 days
 		}
 
 		filtered, err := tool.filterPosts(posts, criteria)
