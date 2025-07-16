@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Reddit Analyzer",
+            "name": "Launch Search Agent",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/redditanalyzer",
+            "program": "${workspaceFolder}/cmd/searchagent",
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env",
         }

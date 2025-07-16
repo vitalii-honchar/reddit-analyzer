@@ -68,7 +68,7 @@ github.com/tidwall/sjson
 # github.com/vartanbeno/go-reddit/v2 v2.0.1
 ## explicit; go 1.15
 github.com/vartanbeno/go-reddit/v2/reddit
-# github.com/vitalii-honchar/go-agent v0.6.1
+# github.com/vitalii-honchar/go-agent v0.6.2
 ## explicit; go 1.24.4
 github.com/vitalii-honchar/go-agent/internal/validation
 github.com/vitalii-honchar/go-agent/pkg/goagent/agent

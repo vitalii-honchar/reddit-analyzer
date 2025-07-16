@@ -36,6 +36,8 @@ const (
 	defaultSubredditPostSearchTimeout = 60 * time.Second
 )
 
+const RedditSearchToolName = "reddit_post_search"
+
 type (
 	SubredditPostSearchParams struct {
 		Subreddit       string                     `json:"subreddit" jsonschema_description:"Subreddit name (without r/ prefix) to search in (required)"`
@@ -73,7 +75,7 @@ func NewRedditPostSearchTool() (llm.LLMTool, error) {
 	}
 
 	return llm.NewLLMTool(
-		llm.WithLLMToolName("reddit_post_search"),
+		llm.WithLLMToolName(RedditSearchToolName),
 		llm.WithLLMToolDescription("Searches Reddit for posts matching specific criteria"),
 		llm.WithLLMToolParametersSchema[SubredditPostSearchParams](),
 		llm.WithLLMToolCall(tool.search),
