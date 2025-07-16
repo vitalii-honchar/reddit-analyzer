@@ -1,7 +1,7 @@
 package domain
 
 type SearchResult struct {
-	RedditPosts []RedditPostFinding `json:"reddit_posts,omitempty" jsonschema_description:"List of Reddit posts matching the search query"`
+	RedditPosts []RedditPostFinding `json:"reddit_posts" jsonschema_description:"Summary of relevant Reddit posts found during the search"`
 }
 
 type RedditPostFinding struct {
