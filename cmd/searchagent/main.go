@@ -31,7 +31,7 @@ func main() {
 		},
 		Log: log,
 		Tools: map[string]int{
-			tools.RedditSearchToolName: 10,
+			tools.RedditSearchToolName: 50,
 		},
 		Behavior: "You are a Reddit search agent that helps find relevant posts based on user queries.",
 	})
